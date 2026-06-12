@@ -261,7 +261,9 @@
   body[data-view="odds"] main{padding-top:12px;padding-bottom:0}
   body[data-view="odds"] footer,body[data-view="odds"] .disclaimer-wrap{display:none}
   .forecast-hero{padding:0!important}
-  body[data-view="odds"] .fc-chart{height:calc(100vh - 104px)}
+  .fc-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:4px 2px 10px}
+  .fc-bar #fc-search{min-width:180px}
+  body[data-view="odds"] .fc-chart{height:calc(100vh - 156px)}
   .fc-fallback{display:none;padding:18px 6px 6px}
   .fc-fb-row{display:flex;align-items:center;gap:10px;margin:7px 0;font-size:12px}
   .fc-fb-row .fb-name{width:150px;flex:0 0 auto;color:var(--txt);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -405,6 +407,14 @@
 
 <main id="app">
 <section class="view forecast-hero active" data-view="odds">
+  <div class="fc-bar">
+    <div class="fc-presets" id="fc-presets">
+      <button data-preset="contenders" class="active">Favorites</button>
+      <button data-preset="all">All</button>
+    </div>
+    <input id="fc-search" placeholder="🔍 Find a team…" list="fc-teamlist" autocomplete="off" />
+    <datalist id="fc-teamlist"></datalist>
+  </div>
   <div id="fc-chart" class="fc-chart"></div>
   <div id="fc-fallback" class="fc-fallback"></div>
 </section>
