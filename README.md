@@ -57,14 +57,14 @@ and a search box to add a specific team.
   cached in `localStorage` for an hour. **Refresh** re-pulls live data.
 
 ### Matches
-Single chronological column. Each row shows both teams (flags link to their
-pages), each team's **current chance to win the *whole tournament*** (clearly
-labeled — the two won't sum to 100%, since it's not a per-match odds), the
-**kickoff in Luxembourg time** (converted via `Intl` from real UTC kickoffs),
-stage, and the venue (links to its stadium page). Filters: by team, and
-all / upcoming / played. The **Update Scores Live** button pulls real scores
-from TheSportsDB. *Note:* the bundled schedule currently covers Matchday 1 — the
-full 104-match fixture list is a curation TODO.
+Single chronological column of the **full 104-match schedule** — 72 group games
+(with team flags, cup-win %, scores) plus the 32 **knockout** bracket games
+(shown as TBD slots like "Winner Group A", with round labels). Each row shows
+both teams (flags link to their pages), each team's **current chance to win the
+*whole tournament*** (labeled — the two won't sum to 100%), the **kickoff in
+Luxembourg time** (`Intl`-converted from real UTC kickoffs), stage, and the venue
+(links to its stadium page). Filters: by team, and all / upcoming / played.
+Schedule lives in `schedule.js`, parsed from Wikipedia's rendered fixtures.
 
 ### Groups
 All 12 groups (A–L) with standings tables, top-two qualification highlighted.
@@ -72,9 +72,10 @@ All 12 groups (A–L) with standings tables, top-two qualification highlighted.
 pages.
 
 ### Stadiums
-Grid of all 16 host venues → click for a detail page: capacity, local time
-(live), interesting facts, matches hosted, and a **Google Maps directions** link
-(built from verified coordinates). Data is baked in.
+Grid of all 16 host venues (with **photos** + host-country flag) → click for a
+detail page: a photo, capacity, local time (live), interesting facts, matches
+hosted, and a **Google Maps directions** link (from verified coordinates). Core
+data is baked in; photos (`images.js`) come from Wikimedia Commons.
 
 ### Players
 Every tournament player (~1,248 across 48 squads) in one searchable page —
