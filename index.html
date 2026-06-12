@@ -440,7 +440,8 @@
 <section class="view forecast-hero active" data-view="odds">
   <div class="fc-bar">
     <div class="fc-presets" id="fc-presets">
-      <button data-preset="contenders" class="active">Favorites</button>
+      <button data-preset="top5" class="active">Top 5</button>
+      <button data-preset="contenders">Favorites</button>
       <button data-preset="all">All</button>
     </div>
     <input id="fc-search" placeholder="🔍 Find a team…" list="fc-teamlist" autocomplete="off" />
@@ -797,7 +798,8 @@ const ALL_CODES=Object.keys(T);
 
 // Tiered palette: curated, distinct colors for the strongest teams (those that own
 // visible area); the long tail of longshots fades into quiet slate so it recedes.
-const FEATURE_COLORS=["#f5c542","#2e7bff","#e8254a","#19c37d","#7c5cff","#ff7a3c","#21d4d4","#ff5db1","#9bd34a","#b388ff","#ffa53b","#4ad6a0","#5b8def","#e0607e","#54c7ec","#c7cf3a"];
+// Softer, harmonized palette — distinct hues but lower saturation, so the crests are the pop.
+const FEATURE_COLORS=["#d9b44e","#6f9bd1","#d66b78","#57b08c","#9a8fd0","#e0986a","#5fb2bb","#d68bb2","#a6bd6a","#b3a7dd","#dcab63","#6cc0a4","#8aa6d8","#cf8aa0","#82bcd6","#bcbf6e"];
 const COLOR={};
 (()=>{ const rank=ALL_CODES.slice().sort((a,b)=>(SEED[b]||0)-(SEED[a]||0));
   rank.forEach((c,i)=>{ COLOR[c]= i<FEATURE_COLORS.length ? FEATURE_COLORS[i] : `hsl(222 13% ${40+((i-FEATURE_COLORS.length)%8)*4}%)`; });
@@ -873,6 +875,7 @@ function applyPreset(p){
   const ranked=fcRankedCodes(fcTimeline);
   fcVisible=new Set();
   if(p==="all") ranked.forEach(c=>fcVisible.add(c));
+  else if(p==="top5") ranked.slice(0,5).forEach(c=>fcVisible.add(c));
   else if(p==="contenders") ranked.slice(0,TOP_N).forEach(c=>fcVisible.add(c));
   // "clear" -> none
   document.querySelectorAll("#fc-presets button").forEach(b=>b.classList.toggle("active",b.dataset.preset===p));
@@ -931,9 +934,20 @@ function renderForecast(tl){
       m=new Date(Date.UTC(m.getUTCFullYear(),m.getUTCMonth()+1,1));
     } }
   const todayX=new Date(new Date(today+"T00:00:00Z").getTime()+half).toISOString();
+  // Right-edge crest strip: one crest per selected team, at the mid-height of its CURRENT share.
+  const idxToday=days.indexOf(today);
+  const crestImgs=[]; let cum=0;
+  for(const c of ranked){
+    const share=idxToday>=0?(M[c][idxToday]||0):0;
+    if(fcVisible.has(c) && share>3){
+      const src=(typeof TEAM_IMG!=="undefined" && TEAM_IMG[c])||"";
+      if(src) crestImgs.push({source:src, xref:"paper", x:0.978, y:cum+share/2, yref:"y", sizex:0.03, sizey:7, xanchor:"center", yanchor:"middle", sizing:"contain", layer:"above"});
+    }
+    cum+=share;
+  }
   const layout={
     paper_bgcolor:"rgba(0,0,0,0)", plot_bgcolor:"rgba(255,255,255,.022)",   // one ruled canvas across all days
-    margin:{l:6,r:8,t:10,b:52}, bargap:0.12, barmode:"stack",
+    margin:{l:6,r:14,t:10,b:52}, bargap:0.12, barmode:"stack", images:crestImgs,
     font:{color:"#8b92ad", family:'Segoe UI, system-ui, sans-serif', size:12},
     xaxis:{type:"date", range:[axStart,axEnd], dtick:DAY, tickformat:"%-d", tickfont:{size:10},
       ticks:"outside", ticklen:3, tickcolor:"rgba(255,255,255,.12)",
@@ -998,12 +1012,12 @@ async function loadForecast(force){
     fcSetMeta("seed",`<b>Snapshot</b> · 11 Jun 2026`);
   }finally{ btn&&btn.classList.remove("loading"); }
 }
-function applyPresetInitial(){ fcTimeline=seedTimeline(); applyPreset("contenders"); }
+function applyPresetInitial(){ fcTimeline=seedTimeline(); applyPreset("top5"); }
 function renderKeepingSelection(tl){
   // First live load: default to contenders. Later refreshes keep the user's selection.
   const firstLive=!fcTimeline||fcTimeline.single;
   fcTimeline=tl;
-  if(firstLive){ applyPreset("contenders"); } else { renderForecast(tl); }
+  if(firstLive){ applyPreset("top5"); } else { renderForecast(tl); }
 }
 
 /* search box: type/pick a team to add it to the chart (only if the box exists) */
