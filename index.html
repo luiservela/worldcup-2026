@@ -203,7 +203,8 @@
   .teams-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:13px}
   .team-card{background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.01));border:1px solid var(--line);border-radius:16px;padding:20px 18px;transition:.2s;cursor:default;position:relative;overflow:hidden}
   .team-card:hover{transform:translateY(-3px);border-color:var(--line-strong);box-shadow:var(--shadow)}
-  .team-card .flag{font-size:46px;line-height:1;filter:drop-shadow(0 4px 8px rgba(0,0,0,.5))}
+  .team-card .flag{font-size:46px;line-height:1;filter:drop-shadow(0 4px 8px rgba(0,0,0,.5));min-height:54px;display:flex;align-items:center;justify-content:center}
+  .team-card .card-crest{height:54px;width:auto;max-width:78px;object-fit:contain;display:block}
   .team-card .cname{font-weight:800;font-size:16px;margin-top:14px}
   .team-card .meta{font-size:12px;color:var(--muted);margin-top:4px}
   .team-card .grp{position:absolute;top:14px;right:14px;font-size:10px;font-weight:800;letter-spacing:1px;color:var(--muted-2);border:1px solid var(--line);padding:3px 8px;border-radius:7px}
@@ -646,10 +647,11 @@ function renderGroups(){
 function renderTeams(){
   const codes=Object.keys(T).sort((a,b)=>tname(a).localeCompare(tname(b)));
   $("#teams-count").textContent=`${codes.length} teams · alphabetical`;
+  const img=typeof TEAM_IMG!=="undefined"?TEAM_IMG:{};
   $("#teams-grid").innerHTML=codes.map(c=>`
     <a class="team-card" href="#/team/${c}" style="text-decoration:none;color:inherit">
       <span class="grp">GRP ${T[c][2]}</span>
-      <div class="flag">${flag(c)}</div>
+      <div class="flag">${img[c]?`<img class="card-crest" src="${img[c]}" alt="" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('span'),{textContent:'${flag(c)}'}))">`:flag(c)}</div>
       <div class="cname">${tname(c)}</div>
       <div class="meta">Group ${T[c][2]}</div>
       <span class="conf">${T[c][3]}</span>
