@@ -455,7 +455,6 @@
     </div>
     <input id="fc-search" placeholder="🔍 Find a team…" list="fc-teamlist" autocomplete="off" />
     <datalist id="fc-teamlist"></datalist>
-    <label class="fc-crest-ctl" title="Crest size">⬤ <input id="fc-crest-size" type="range" min="14" max="84" value="66" /></label>
   </div>
   <div class="fc-chart-wrap">
     <div id="fc-chart" class="fc-chart"></div>
@@ -1378,9 +1377,7 @@ document.querySelectorAll("#p-pos button").forEach(b=>b.addEventListener("click"
   b.classList.add("active"); pFilter.pos=b.dataset.p; renderPlayers();
 }));
 
-// Crest-size slider (play with it) + keep badges placed on resize.
-const _cs=$("#fc-crest-size");
-if(_cs){ CREST_SIZE=+_cs.value||CREST_SIZE; _cs.addEventListener("input",e=>{ CREST_SIZE=+e.target.value; placeCrests(); }); }
+// Keep crest badges placed on window resize.
 let _fcRz; window.addEventListener("resize",()=>{ clearTimeout(_fcRz); _fcRz=setTimeout(placeCrests,120); });
 
 route();
