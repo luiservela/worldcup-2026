@@ -24,11 +24,20 @@ That's it — everything (styles, logic, data, flags) lives inside the one file.
 
 ## What the page does
 
-A dark, gradient-lit interface with a sticky glass header. The **hero is a live
-win-probability chart** (see below), followed by a gold "Opening Match" card and
-four tabbed sections:
+A dark, gradient-lit interface with a sticky glass header. It's a **single-file
+hash-routed SPA** — six pages plus detail views, all in one `index.html`, no
+build. Navigation uses URL hashes, so links are shareable and work directly on
+GitHub Pages: `#/odds`, `#/matches`, `#/team/MEX`, `#/stadium/estadio-azteca`,
+`#/nerd`. **Every flag on the site links to that team's page.**
 
-### 0. Win Probability (the hero)
+Pages: **Odds** (landing) · **Matches** · **Groups** · **Teams** · **Stadiums** ·
+**Nerd-stuff**.
+
+Data strategy: reliable, slow-changing data (the 16 stadiums, fixture kickoffs,
+tournament facts) is **curated and baked in**; data that actually changes
+(win probabilities, scores, squads) is **fetched live** with graceful fallbacks.
+
+### Odds (the landing page)
 A stacked **area chart** — x-axis = time, y-axis = win probability — showing how
 each of the 48 nations' chance of lifting the trophy has evolved. Built on
 [Plotly](https://plotly.com/javascript/): click any team in the legend to toggle
@@ -47,26 +56,39 @@ and a search box to add a specific team.
   chart instantly and even fully offline; live history layers in on top and is
   cached in `localStorage` for an hour. **Refresh** re-pulls live data.
 
-### 1. Matches
-Fixture cards grouped by day, each showing both teams (emoji flags), score
-placeholders, stage, status (Upcoming / Opening Match / Live / Full-time),
-venue, and kickoff time. Includes the prominent **Update Stats Live** button
-(see below).
+### Matches
+Single chronological column. Each row shows both teams (flags link to their
+pages), each team's **current chance to win the *whole tournament*** (clearly
+labeled — the two won't sum to 100%, since it's not a per-match odds), the
+**kickoff in Luxembourg time** (converted via `Intl` from real UTC kickoffs),
+stage, and the venue (links to its stadium page). Filters: by team, and
+all / upcoming / played. The **Update Scores Live** button pulls real scores
+from TheSportsDB. *Note:* the bundled schedule currently covers Matchday 1 — the
+full 104-match fixture list is a curation TODO.
 
-### 2. Groups
-All 12 groups (A–L) with full standings tables — Played, Won, Drawn, Lost,
-Goal Difference, Points. The top-two qualification spots are highlighted in
-green. **Standings are computed automatically from match results**, so they can
-never disagree with the fixtures.
+### Groups
+All 12 groups (A–L) with standings tables, top-two qualification highlighted.
+**Standings compute automatically from match results.** Team rows link to team
+pages.
 
-### 3. Teams
+### Stadiums
+Grid of all 16 host venues → click for a detail page: capacity, local time
+(live), interesting facts, matches hosted, and a **Google Maps directions** link
+(built from verified coordinates). Data is baked in.
+
+### Team detail (`#/team/<code>`)
+Flag, group, confederation, current cup-win %, the team's group standings, its
+fixtures, and a **squad** lazy-loaded from TheSportsDB (free tier is partial, so
+it falls back to a Wikipedia squad link).
+
+### Nerd-stuff (was "Stats")
+A facts grid mixing **live** aggregates (matches played, goals) with curated
+static trivia (prize money, viewership, mascots, debutants, records…), plus the
+Golden Boot placeholder and "Did you know" notes.
+
+### Teams
 All 48 nations as flag cards, sorted alphabetically, each tagged with its group
-and confederation (UEFA, CONMEBOL, CAF, AFC, CONCACAF, OFC).
-
-### 4. Stats
-A "by the numbers" KPI grid (matches played / 104, goals, nations, host cities),
-a Golden Boot panel, and a "Did you know" facts panel. KPIs update from real
-scores when the live feed is synced.
+and confederation. Click any card to open that team's detail page.
 
 ---
 
