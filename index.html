@@ -288,6 +288,12 @@
   .forecast-hero{padding:0!important}
   .fc-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:4px 2px 10px}
   .fc-bar #fc-search{min-width:180px}
+  .fc-bar-side{flex:1 1 0;display:flex;align-items:center;gap:8px;min-width:0}
+  .fc-bar-right{justify-content:flex-end}
+  .fc-presets{flex:0 0 auto}   /* centred: the two side zones (flex:1) balance it */
+  .fc-options{display:flex;align-items:center;gap:8px}
+  .fc-options[hidden]{display:none}
+  @media(max-width:640px){ .fc-bar-side{flex:1 1 100%} .fc-bar-right{justify-content:flex-start} }
   .fc-colorbtn{font-family:inherit;font-size:12px;font-weight:700;color:var(--muted);background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:10px;padding:8px 12px;cursor:pointer;transition:.16s}
   .fc-colorbtn:hover{color:var(--txt);border-color:var(--line-strong)}
   .fc-crest-ctl{display:inline-flex;align-items:center;gap:7px;font-size:11px;color:var(--muted-2)}
@@ -458,15 +464,23 @@
 <main id="app">
 <section class="view forecast-hero active" data-view="odds">
   <div class="fc-bar">
+    <div class="fc-bar-side fc-bar-left">
+      <input id="fc-search" placeholder="🔍 Find a team…" list="fc-teamlist" autocomplete="off" />
+      <datalist id="fc-teamlist"></datalist>
+    </div>
     <div class="fc-presets" id="fc-presets">
       <button data-preset="top3">Top 3</button>
       <button data-preset="top5" class="active">Top 5</button>
       <button data-preset="top10">Top 10</button>
       <button data-preset="all">All</button>
     </div>
-    <input id="fc-search" placeholder="🔍 Find a team…" list="fc-teamlist" autocomplete="off" />
-    <datalist id="fc-teamlist"></datalist>
-    <button id="fc-colormode" class="fc-colorbtn" title="Bar colours: Vibrant → Team → Complementary → Tartan">🎨 Tartan</button>
+    <div class="fc-bar-side fc-bar-right">
+      <button id="fc-options-btn" class="fc-colorbtn" title="Display options" aria-expanded="false">⚙️ Options</button>
+      <div class="fc-options" id="fc-options" hidden>
+        <button id="fc-colormode" class="fc-colorbtn" title="Bar colours: Vibrant → Team → Complementary → Tartan">🎨 Tartan</button>
+        <label class="fc-crest-ctl" title="Crest size">⬤ <input id="fc-crest-size" type="range" min="14" max="84" value="66" /></label>
+      </div>
+    </div>
   </div>
   <div class="fc-chart-wrap">
     <div id="fc-chart" class="fc-chart"></div>
@@ -1466,6 +1480,14 @@ if(_cm) _cm.addEventListener("click",()=>{
   renderForecast();
 });
 updateColorBtn();
+
+// ⚙️ Options disclosure: reveal the palette toggle + crest-size slider.
+const _ob=$("#fc-options-btn"), _op=$("#fc-options");
+if(_ob&&_op) _ob.addEventListener("click",()=>{ _op.hidden=!_op.hidden; _ob.setAttribute("aria-expanded",String(!_op.hidden)); });
+// Crest-size slider.
+const _cs=$("#fc-crest-size");
+if(_cs){ CREST_SIZE=+_cs.value||CREST_SIZE; _cs.addEventListener("input",e=>{ CREST_SIZE=+e.target.value; placeCrests(); }); }
+
 // Extract crest colours; re-render once ready (the default Tartan mode needs them).
 extractCrestColors(()=>{ if(FC_COLORMODE!=="vibrant") renderForecast(); });
 
