@@ -280,7 +280,14 @@
   .forecast-hero{padding:0!important}
   .fc-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:4px 2px 10px}
   .fc-bar #fc-search{min-width:180px}
+  .fc-crest-ctl{display:inline-flex;align-items:center;gap:7px;font-size:11px;color:var(--muted-2)}
+  .fc-crest-ctl input[type=range]{width:92px;accent-color:var(--gold)}
   body[data-view="odds"] .fc-chart{height:calc(100vh - 156px)}
+  .fc-chart-wrap{position:relative}
+  #fc-crests{position:absolute;inset:0;pointer-events:none;overflow:visible;z-index:5}
+  .fc-crest{position:absolute;transform:translate(-50%,-50%);border-radius:50%;overflow:hidden;background:#0b0e1a;border:2px solid rgba(255,255,255,.32);box-shadow:0 3px 10px rgba(0,0,0,.55);display:grid;place-items:center}
+  .fc-crest img{width:84%;height:84%;object-fit:contain;display:block}
+  .fc-crest .fcx{font-size:60%;line-height:1}
   .fc-fallback{display:none;padding:18px 6px 6px}
   .fc-fb-row{display:flex;align-items:center;gap:10px;margin:7px 0;font-size:12px}
   .fc-fb-row .fb-name{width:150px;flex:0 0 auto;color:var(--txt);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -446,8 +453,12 @@
     </div>
     <input id="fc-search" placeholder="🔍 Find a team…" list="fc-teamlist" autocomplete="off" />
     <datalist id="fc-teamlist"></datalist>
+    <label class="fc-crest-ctl" title="Crest size">⬤ <input id="fc-crest-size" type="range" min="14" max="84" value="38" /></label>
   </div>
-  <div id="fc-chart" class="fc-chart"></div>
+  <div class="fc-chart-wrap">
+    <div id="fc-chart" class="fc-chart"></div>
+    <div id="fc-crests"></div>
+  </div>
   <div id="fc-fallback" class="fc-fallback"></div>
 </section>
 
@@ -798,8 +809,7 @@ const ALL_CODES=Object.keys(T);
 
 // Tiered palette: curated, distinct colors for the strongest teams (those that own
 // visible area); the long tail of longshots fades into quiet slate so it recedes.
-// Softer, harmonized palette — distinct hues but lower saturation, so the crests are the pop.
-const FEATURE_COLORS=["#d9b44e","#6f9bd1","#d66b78","#57b08c","#9a8fd0","#e0986a","#5fb2bb","#d68bb2","#a6bd6a","#b3a7dd","#dcab63","#6cc0a4","#8aa6d8","#cf8aa0","#82bcd6","#bcbf6e"];
+const FEATURE_COLORS=["#f5c542","#2e7bff","#e8254a","#19c37d","#7c5cff","#ff7a3c","#21d4d4","#ff5db1","#9bd34a","#b388ff","#ffa53b","#4ad6a0","#5b8def","#e0607e","#54c7ec","#c7cf3a"];
 const COLOR={};
 (()=>{ const rank=ALL_CODES.slice().sort((a,b)=>(SEED[b]||0)-(SEED[a]||0));
   rank.forEach((c,i)=>{ COLOR[c]= i<FEATURE_COLORS.length ? FEATURE_COLORS[i] : `hsl(222 13% ${40+((i-FEATURE_COLORS.length)%8)*4}%)`; });
@@ -808,6 +818,8 @@ const COLOR={};
 let fcTimeline=null;                 // {dates, series:{code:[...]}, live, single}
 let fcVisible=new Set();             // codes currently shown
 let fcSyncing=false, fcListenerReady=false;   // legend↔selection sync (re-normalize on toggle)
+const FC_MARGIN={l:6,r:14,t:10,b:52};         // must match the Plotly layout margins (for crest placement)
+let CREST_SIZE=38, fcLast=null;               // circular crest badges: adjustable size + last render data
 const fcTitle=c=>`${flag(c)} ${tname(c)}`;
 const lastOf=a=>a&&a.length?a[a.length-1]:0;
 
@@ -934,20 +946,9 @@ function renderForecast(tl){
       m=new Date(Date.UTC(m.getUTCFullYear(),m.getUTCMonth()+1,1));
     } }
   const todayX=new Date(new Date(today+"T00:00:00Z").getTime()+half).toISOString();
-  // Right-edge crest strip: one crest per selected team, at the mid-height of its CURRENT share.
-  const idxToday=days.indexOf(today);
-  const crestImgs=[]; let cum=0;
-  for(const c of ranked){
-    const share=idxToday>=0?(M[c][idxToday]||0):0;
-    if(fcVisible.has(c) && share>3){
-      const src=(typeof TEAM_IMG!=="undefined" && TEAM_IMG[c])||"";
-      if(src) crestImgs.push({source:src, xref:"paper", x:0.978, y:cum+share/2, yref:"y", sizex:0.03, sizey:7, xanchor:"center", yanchor:"middle", sizing:"contain", layer:"above"});
-    }
-    cum+=share;
-  }
   const layout={
     paper_bgcolor:"rgba(0,0,0,0)", plot_bgcolor:"rgba(255,255,255,.022)",   // one ruled canvas across all days
-    margin:{l:6,r:14,t:10,b:52}, bargap:0.12, barmode:"stack", images:crestImgs,
+    margin:FC_MARGIN, bargap:0.12, barmode:"stack",
     font:{color:"#8b92ad", family:'Segoe UI, system-ui, sans-serif', size:12},
     xaxis:{type:"date", range:[axStart,axEnd], dtick:DAY, tickformat:"%-d", tickfont:{size:10},
       ticks:"outside", ticklen:3, tickcolor:"rgba(255,255,255,.12)",
@@ -960,6 +961,7 @@ function renderForecast(tl){
     annotations:[{x:midFuture, y:0.5, xref:"x", yref:"paper", text:"Matches to come — odds fill in daily", showarrow:false, font:{size:12,color:"#565d76"}}].concat(monthAnns),
   };
   Plotly.react("fc-chart", traces, layout, {displayModeBar:false, responsive:true});
+  fcLast={days,today,M,ranked}; setTimeout(placeCrests,0);   // circular crest badges overlay
   const dl=$("#fc-teamlist"); if(dl) dl.innerHTML=ranked.map(c=>`<option value="${tname(c)}">`).join("");
   // Toggling teams via the legend changes the selection → re-normalize to 100%.
   const gd=document.getElementById("fc-chart");
@@ -975,6 +977,37 @@ function renderForecast(tl){
     });
   }
 }
+
+// Circular crest badges overlaid on the chart: at the right edge of the latest bar,
+// vertically centered on each selected team's CURRENT share. Higher share = on top.
+function placeCrests(){
+  const host=$("#fc-crests"), chart=document.getElementById("fc-chart");
+  if(!host||!chart||!fcLast){ if(host) host.innerHTML=""; return; }
+  const {days,today,M,ranked}=fcLast;
+  const W=chart.clientWidth, H=chart.clientHeight;
+  if(!W||!H){ host.innerHTML=""; return; }
+  const plotL=FC_MARGIN.l, plotR=W-FC_MARGIN.r, plotT=FC_MARGIN.t, plotB=H-FC_MARGIN.b;
+  const axStart=Date.parse(TOUR_START+"T00:00:00Z")-DAY/2, axEnd=Date.parse(TOUR_END+"T00:00:00Z")+DAY/2;
+  const barRight=Date.parse(today+"T00:00:00Z")+0.44*DAY;     // right edge of the latest bar
+  const xPix=plotL+(barRight-axStart)/(axEnd-axStart)*(plotR-plotL);
+  const idxToday=days.indexOf(today);
+  let cum=0; const items=[];
+  for(const c of ranked){
+    const share=idxToday>=0?(M[c][idxToday]||0):0;
+    if(fcVisible.has(c) && share>0.3){
+      const yPix=plotT+(100-(cum+share/2))/100*(plotB-plotT);
+      items.push({c,share,yPix});
+    }
+    cum+=share;
+  }
+  host.innerHTML=items.map(it=>{
+    const src=(typeof TEAM_IMG!=="undefined"&&TEAM_IMG[it.c])||"";
+    const z=100+Math.round(it.share*5);   // higher win-share rendered on top
+    const inner=src?`<img src="${src}" alt="${tname(it.c)}" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'fcx',textContent:'${flag(it.c)}'}))">`:`<span class="fcx">${flag(it.c)}</span>`;
+    return `<div class="fc-crest" title="${tname(it.c)} — ${it.share.toFixed(1)}%" style="left:${xPix.toFixed(1)}px;top:${it.yPix.toFixed(1)}px;width:${CREST_SIZE}px;height:${CREST_SIZE}px;z-index:${z}">${inner}</div>`;
+  }).join("");
+}
+const DAY=86400000;
 
 function renderFallback(tl,ranked){
   // Plotly unavailable (e.g. offline CDN): simple CSS stacked bars from latest column.
@@ -1313,7 +1346,7 @@ function route(){
     groups:()=>{ renderGroups(); if(param){ const e=document.getElementById("grp-"+param); if(e){ e.scrollIntoView({behavior:"smooth",block:"center"}); e.classList.add("flash"); setTimeout(()=>e.classList.remove("flash"),1700); } } },
     teams:renderTeams,team:()=>renderTeamDetail(param),
     players:renderPlayers,player:()=>renderPlayerDetail(param),stadiums:renderStadiums,stadium:()=>renderStadiumDetail(param)}[v]||(()=>{}))();
-  if(v==="odds" && typeof Plotly!=="undefined"){ const gd=document.getElementById("fc-chart"); if(gd&&gd.data) Plotly.Plots.resize(gd); }
+  if(v==="odds" && typeof Plotly!=="undefined"){ const gd=document.getElementById("fc-chart"); if(gd&&gd.data){ Plotly.Plots.resize(gd); setTimeout(placeCrests,30); } }
   window.scrollTo(0,0);
 }
 window.addEventListener("hashchange",route);
@@ -1341,6 +1374,11 @@ document.querySelectorAll("#p-pos button").forEach(b=>b.addEventListener("click"
   document.querySelectorAll("#p-pos button").forEach(x=>x.classList.remove("active"));
   b.classList.add("active"); pFilter.pos=b.dataset.p; renderPlayers();
 }));
+
+// Crest-size slider (play with it) + keep badges placed on resize.
+const _cs=$("#fc-crest-size");
+if(_cs){ CREST_SIZE=+_cs.value||CREST_SIZE; _cs.addEventListener("input",e=>{ CREST_SIZE=+e.target.value; placeCrests(); }); }
+let _fcRz; window.addEventListener("resize",()=>{ clearTimeout(_fcRz); _fcRz=setTimeout(placeCrests,120); });
 
 route();
 loadForecast();
