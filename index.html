@@ -318,6 +318,10 @@
   .pcard{display:flex;align-items:center;gap:12px;background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.012));border:1px solid var(--line);border-radius:13px;padding:10px 14px;text-decoration:none;color:inherit;transition:.16s}
   .pcard:hover{border-color:var(--line-strong);transform:translateY(-1px);box-shadow:var(--shadow)}
   .pcard .pflag{font-size:26px;flex:0 0 auto}
+  .pava{position:relative;flex:0 0 auto;width:42px;height:42px}
+  .pava img{width:42px;height:42px;border-radius:50%;object-fit:cover;object-position:top center;background:rgba(255,255,255,.07);display:block}
+  .pava-flag{position:absolute;bottom:-3px;right:-4px;font-size:14px;filter:drop-shadow(0 1px 2px rgba(0,0,0,.6))}
+  .player-hero-img{width:84px;height:84px;border-radius:50%;object-fit:cover;object-position:top center;background:rgba(255,255,255,.07)}
   .pcard .pinfo{flex:1;min-width:0}
   .pcard .pname{font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .pcard .pname .pno{color:var(--muted-2);font-weight:600;font-size:11px}
@@ -348,6 +352,8 @@
   .mrow .tline .nm{font-weight:700;font-size:15px}
   .mrow .tline .pct{margin-left:auto;font-size:12px;font-variant-numeric:tabular-nums;color:var(--gold);font-weight:700}
   .mrow .tline .scr{margin-left:auto;font-size:19px;font-weight:900;font-variant-numeric:tabular-nums}
+  /* future-match title odds — gold pill, clearly distinct from white goal scores */
+  .mrow .tline .modd{margin-left:auto;font-size:13px;font-weight:800;color:var(--gold);font-variant-numeric:tabular-nums;background:rgba(245,197,66,.12);border:1px solid rgba(245,197,66,.3);border-radius:7px;padding:2px 10px;min-width:30px;text-align:center}
   .mrow .meta{text-align:right;font-size:11px;color:var(--muted-2)}
   .mrow .meta .stage{font-weight:700;color:var(--muted);display:block}
   .mrow .meta .venue{display:block;margin-top:3px}
@@ -400,6 +406,7 @@
 <script src="schedule.js"></script>
 <script src="players.js"></script>
 <script src="images.js"></script>
+<script src="player-img.js"></script>
 <script src="history.js"></script>
 </head>
 <body>
@@ -456,7 +463,7 @@
         <button data-f="past">Played</button>
       </div>
       <select id="team-filter" aria-label="Filter by team"><option value="">All teams</option></select>
-      <span class="pct-note">% = each team's chance to win the <b>whole tournament</b> (not this match). ⚖️ shows those two chances as simple odds.</span>
+      <span class="pct-note">Upcoming matches show each team's <b style="color:var(--gold)">title odds</b> (chance to win the tournament, as a ratio); played matches show the <b>score</b>.</span>
     </div>
     <div id="match-list"></div>
   </section>
@@ -610,13 +617,13 @@ function renderMatchList(){
     if(dayLbl!==lastDay){ html+=`<div class="daydiv">${dayLbl}</div>`; lastDay=dayLbl; }
     const sid=r.vid||stadiumIdForVenue(r.venue);
     const coded = r.hc && r.ac;   // group game, or a knockout tie whose teams are now known
+    const o = (coded && !played) ? titleOdds(r.hc,r.ac,P) : null;   // title-win odds, home:away
+    const oTip = o ? `Title odds ${o.a}:${o.b} — chance to win the tournament (home : away)` : "";
     const koLabel=(lbl)=>lbl.replace(/Group ([A-L])/g,(m,g)=>groupLink(g,m));
     const labelTline=(label)=>`<div class="tline"><span class="flag" style="opacity:.5">🏳️</span><span class="nm" style="color:var(--muted)">${koLabel(label)}</span></div>`;
-    const codedTline=(c,scr)=>`<a class="tline" href="#/team/${c}"><span class="flag">${flag(c)}</span><span class="nm">${tname(c)}</span>`+
-          (played?`<span class="scr">${scr}</span>`:`<span class="pct" title="Chance to win the tournament">${P[c].toFixed(1)}%</span>`)+`</a>`;
-    let oddsHtml="";
-    if(coded && !played){ const o=titleOdds(r.hc,r.ac,P); oddsHtml=`<div class="modds" title="The two teams' chances of winning the tournament, as simple odds (home : away)">⚖️ title odds&nbsp;<b>${o.a} : ${o.b}</b></div>`; }
-    const teamsHtml = (coded ? codedTline(r.hc,r.hs)+codedTline(r.ac,r.as) : labelTline(r.home)+labelTline(r.away))+oddsHtml;
+    const codedTline=(c,scr,odd)=>`<a class="tline" href="#/team/${c}"><span class="flag">${flag(c)}</span><span class="nm">${tname(c)}</span>`+
+          (played ? `<span class="scr">${scr}</span>` : (odd!=null ? `<span class="modd" title="${oTip}">${odd}</span>` : ""))+`</a>`;
+    const teamsHtml = coded ? codedTline(r.hc,r.hs,o?o.a:null)+codedTline(r.ac,r.as,o?o.b:null) : labelTline(r.home)+labelTline(r.away);
     const gm=/^Group ([A-L])$/.exec(r.stage);
     const stageHtml = gm ? groupLink(gm[1],r.stage) : r.stage;
     html+=`<div class="mrow">
@@ -1130,8 +1137,14 @@ function renderTeamDetail(code){
 }
 function ageFrom(dob){ if(!dob) return ""; const d=new Date(dob+"T00:00:00Z"),n=new Date(); let a=n.getUTCFullYear()-d.getUTCFullYear(); const m=n.getUTCMonth()-d.getUTCMonth(); if(m<0||(m===0&&n.getUTCDate()<d.getUTCDate()))a--; return a; }
 // Shared player card — identical on the Players page and team pages.
+function playerAvatar(code,r){
+  const ph=(typeof PLAYER_IMG!=="undefined"&&PLAYER_IMG[r._id])||"";
+  return ph
+    ? `<span class="pava"><img src="${ph}" alt="" loading="lazy" onerror="this.closest('.pava').replaceWith(Object.assign(document.createElement('span'),{className:'pflag',textContent:'${flag(code)}'}))"><span class="pava-flag">${flag(code)}</span></span>`
+    : `<span class="pflag">${flag(code)}</span>`;
+}
 function playerCard(code,r){ return `<a class="pcard" href="#/player/${r._id}" title="${r.nm}">
-    <span class="pflag">${flag(code)}</span>
+    ${playerAvatar(code,r)}
     <div class="pinfo"><div class="pname">${r.nm}${r.n?` <span class="pno">#${r.n}</span>`:""}</div><div class="pclub">${r.cl||"—"}</div></div>
     <div class="pmeta"><span class="ppos ${r.p}">${r.p||"?"}</span><span class="page">${ageFrom(r.dob)||"–"}y</span>${r.c!=null?`<span>${r.c} caps</span>`:""}</div>
   </a>`; }
@@ -1159,9 +1172,10 @@ function renderPlayerDetail(id){
     if(myAge===Math.min(...posAges)) ctx.push(`Youngest ${pn} in the squad`);
     else if(myAge===Math.max(...posAges)) ctx.push(`Oldest ${pn} in the squad`); }
   ctx.push(`One of ${sq.length} players in ${tname(code)}'s squad`);
+  const photo=(typeof PLAYER_IMG!=="undefined"&&PLAYER_IMG[id])||"";
   el.innerHTML=`
     <div class="detail-hero">
-      <div class="bigflag">${flag(code)}</div>
+      <div class="bigflag">${photo?`<img class="player-hero-img" src="${photo}" alt="${r.nm}" loading="lazy" onerror="this.parentNode.textContent='${flag(code)}'">`:flag(code)}</div>
       <div>
         <h2>${r.nm} ${r.n!=null?`<span style="color:var(--muted-2);font-weight:700">#${r.n}</span>`:""}</h2>
         <div class="dh-meta"><span>${POSNAME[r.p]||""}</span><span>${myAge} yrs · b. ${fmtDOB(r.dob)}</span><a href="#/team/${code}" style="color:var(--gold)">${flag(code)} ${tname(code)}</a></div>
