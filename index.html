@@ -280,6 +280,8 @@
   .forecast-hero{padding:0!important}
   .fc-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:4px 2px 10px}
   .fc-bar #fc-search{min-width:180px}
+  .fc-colorbtn{font-family:inherit;font-size:12px;font-weight:700;color:var(--muted);background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:10px;padding:8px 12px;cursor:pointer;transition:.16s}
+  .fc-colorbtn:hover{color:var(--txt);border-color:var(--line-strong)}
   .fc-crest-ctl{display:inline-flex;align-items:center;gap:7px;font-size:11px;color:var(--muted-2)}
   .fc-crest-ctl input[type=range]{width:92px;accent-color:var(--gold)}
   body[data-view="odds"] .fc-chart{height:calc(100vh - 156px)}
@@ -455,6 +457,7 @@
     </div>
     <input id="fc-search" placeholder="🔍 Find a team…" list="fc-teamlist" autocomplete="off" />
     <datalist id="fc-teamlist"></datalist>
+    <button id="fc-colormode" class="fc-colorbtn" title="Bar colours: Vibrant → Team → Complement">🎨 Vibrant</button>
   </div>
   <div class="fc-chart-wrap">
     <div id="fc-chart" class="fc-chart"></div>
@@ -816,6 +819,44 @@ const COLOR={};
   rank.forEach((c,i)=>{ COLOR[c]= i<FEATURE_COLORS.length ? FEATURE_COLORS[i] : `hsl(222 13% ${40+((i-FEATURE_COLORS.length)%8)*4}%)`; });
 })();
 
+/* ---- bar-colour modes: vibrant (default) · team (crest's dominant colour) · complement ---- */
+let FC_COLORMODE="vibrant";
+const CREST_COLOR={};                 // code -> {h,s,l} extracted from the crest
+let crestColorsReady=false, crestColorsLoading=false;
+function rgb2hsl(r,g,b){ r/=255;g/=255;b/=255; const mx=Math.max(r,g,b),mn=Math.min(r,g,b),d=mx-mn; let h=0; const l=(mx+mn)/2, s=d===0?0:d/(1-Math.abs(2*l-1));
+  if(d){ if(mx===r)h=((g-b)/d)%6; else if(mx===g)h=(b-r)/d+2; else h=(r-g)/d+4; h*=60; if(h<0)h+=360; } return [h,s,l]; }
+function dominantColor(data){
+  const buckets={};
+  for(let i=0;i<data.length;i+=4){
+    if(data[i+3]<128) continue;
+    const [h,s,l]=rgb2hsl(data[i],data[i+1],data[i+2]);
+    if(l<0.12||l>0.9||s<0.22) continue;          // skip transparent / near-white / near-black / grey
+    const b=(Math.round(h/24)*24)%360, o=buckets[b]||(buckets[b]={w:0,s:0,l:0,n:0});
+    o.w+=s; o.s+=s; o.l+=l; o.n++;
+  }
+  let best=null,bw=0; for(const b in buckets){ if(buckets[b].w>bw){bw=buckets[b].w;best=+b;} }
+  if(best===null) return null;
+  const o=buckets[best];
+  return { h:best, s:Math.min(.85,Math.max(.5,o.s/o.n)), l:Math.min(.62,Math.max(.46,o.l/o.n)) };
+}
+function extractCrestColors(cb){
+  if(crestColorsReady){ cb&&cb(); return; }
+  if(crestColorsLoading){ return; } crestColorsLoading=true;
+  const codes=ALL_CODES.filter(c=>typeof TEAM_IMG!=="undefined"&&TEAM_IMG[c]);
+  const cv=document.createElement("canvas"); cv.width=cv.height=24; const ctx=cv.getContext("2d",{willReadFrequently:true});
+  let done=0; const finish=()=>{ if(++done>=codes.length){ crestColorsReady=true; cb&&cb(); } };
+  codes.forEach(c=>{ const img=new Image();
+    img.onload=()=>{ try{ ctx.clearRect(0,0,24,24); ctx.drawImage(img,0,0,24,24); CREST_COLOR[c]=dominantColor(ctx.getImageData(0,0,24,24).data); }catch(e){} finish(); };
+    img.onerror=finish; img.src=TEAM_IMG[c]; });
+}
+function barColor(c){
+  if(FC_COLORMODE==="vibrant") return COLOR[c];
+  const cc=CREST_COLOR[c]; if(!cc) return COLOR[c];
+  const h=FC_COLORMODE==="comp"?(cc.h+180)%360:cc.h;
+  return `hsl(${h.toFixed(0)} ${Math.round(cc.s*100)}% ${Math.round(cc.l*100)}%)`;
+}
+function updateColorBtn(){ const b=$("#fc-colormode"); if(b) b.textContent="🎨 "+({vibrant:"Vibrant",team:"Team",comp:"Complement"}[FC_COLORMODE]); }
+
 let fcTimeline=null;                 // {dates, series:{code:[...]}, live, single}
 let fcVisible=new Set();             // codes currently shown
 let fcSyncing=false, fcListenerReady=false;   // legend↔selection sync (re-normalize on toggle)
@@ -925,7 +966,7 @@ function renderForecast(tl){
   const {days,today,M}=dailyMatrix(fcVisible);
   const traces=ranked.map(c=>({
     type:"bar", x:days, y:M[c], name:fcTitle(c),
-    marker:{color:COLOR[c], line:{width:0}}, visible:fcVisible.has(c)?true:"legendonly", meta:c,
+    marker:{color:barColor(c), line:FC_COLORMODE==="vibrant"?{width:0}:{width:0.7,color:"rgba(6,7,13,.5)"}}, visible:fcVisible.has(c)?true:"legendonly", meta:c,
     hovertemplate:`%{x|%d %b}<br>${fcTitle(c)}: %{y:.1f}%<extra></extra>`,
   }));
   const DAY=86400000, half=DAY/2;
@@ -1379,6 +1420,15 @@ document.querySelectorAll("#p-pos button").forEach(b=>b.addEventListener("click"
 
 // Keep crest badges placed on window resize.
 let _fcRz; window.addEventListener("resize",()=>{ clearTimeout(_fcRz); _fcRz=setTimeout(placeCrests,120); });
+
+// Bar-colour mode toggle: Vibrant → Team → Complement.
+const _cm=$("#fc-colormode");
+if(_cm) _cm.addEventListener("click",()=>{
+  const m=["vibrant","team","comp"]; FC_COLORMODE=m[(m.indexOf(FC_COLORMODE)+1)%3]; updateColorBtn();
+  if(FC_COLORMODE!=="vibrant" && !crestColorsReady) extractCrestColors(()=>renderForecast());
+  renderForecast();
+});
+extractCrestColors();   // pre-extract crest colours in the background so toggling is instant
 
 route();
 loadForecast();
