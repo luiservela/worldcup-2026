@@ -390,6 +390,7 @@
 <script src="schedule.js"></script>
 <script src="players.js"></script>
 <script src="images.js"></script>
+<script src="history.js"></script>
 </head>
 <body>
 
@@ -832,6 +833,17 @@ function buildTimeline(hist){
   return {dates:days.map(d=>new Date(d).toISOString().slice(0,10)), series, live:true, single:false};
 }
 
+// Build the timeline from our OWNED archive (history.js global). No network — works
+// after Polymarket closes. snapshots: [{date, p:{CODE: yesPrice}}], forward-filled.
+function historyToTimeline(h){
+  const snaps=(h&&h.snapshots||[]).slice().sort((a,b)=>a.date.localeCompare(b.date));
+  if(!snaps.length) return null;
+  const dates=snaps.map(s=>s.date), series={}, last={};
+  ALL_CODES.forEach(c=>series[c]=[]);
+  for(const s of snaps){ for(const c of ALL_CODES){ if(s.p&&s.p[c]!=null) last[c]=s.p[c]; series[c].push(last[c]!=null?last[c]:0); } }
+  return {dates, series, live:true, single:false};
+}
+
 /* ---- rendering ---- */
 function fcRankedCodes(tl){ return ALL_CODES.slice().sort((a,b)=>lastOf(tl.series[b])-lastOf(tl.series[a])); }
 
@@ -928,33 +940,25 @@ function renderFallback(tl,ranked){
 
 /* ---- orchestration ---- */
 async function loadForecast(force){
-  // 1) Instant render from the baked seed (Day-0 stacked bar).
+  // 1) Instant render from the baked seed.
   if(!fcTimeline){ applyPresetInitial(); }
 
-  // 2) Try cache, then live fetch.
-  const btn=$("#fc-refresh");
-  try{
-    if(!force){
-      const cached=JSON.parse(localStorage.getItem(PM_CFG.cacheKey)||"null");
-      if(cached && (Date.now()-cached.ts)<PM_CFG.cacheTTL && cached.tl){
-        fcSetMeta("live",`<b>Live</b> · prediction markets · cached ${new Date(cached.ts).toLocaleString()}`);
-        renderKeepingSelection(cached.tl); return;
-      }
-    }
-  }catch(e){/* localStorage may be blocked on file:// — ignore */}
+  // 2) Our OWNED archive (history.js) — no network, works after Polymarket closes.
+  //    Updated daily by the GitHub Action, so it stays current on its own.
+  try{ if(typeof HISTORY!=="undefined"){ const tl=historyToTimeline(HISTORY); if(tl){ fcSetMeta("live",`<b>Archive</b> · ${tl.dates.length} days`); renderKeepingSelection(tl); return; } } }catch(e){/* fall through */}
 
+  // 3) Fallback: live Polymarket (e.g. opened locally where a bundled history is absent).
+  const btn=$("#fc-refresh");
   btn&&btn.classList.add("loading");
   fcSetMeta("work","Pulling live market history…");
   try{
     const hist=await fetchAll(ALL_CODES,(d,n)=>fcSetMeta("work",`Pulling live market history… ${d}/${n}`));
     const tl=buildTimeline(hist);
     if(!tl) throw new Error("no history");
-    try{ localStorage.setItem(PM_CFG.cacheKey, JSON.stringify({ts:Date.now(),tl})); }catch(e){}
-    const span=`${tl.dates[0]} → ${tl.dates[tl.dates.length-1]}`;
-    fcSetMeta("live",`<b>Live</b> · Polymarket · ${tl.dates.length} days (${span})`);
+    fcSetMeta("live",`<b>Live</b> · Polymarket · ${tl.dates.length} days`);
     renderKeepingSelection(tl);
   }catch(e){
-    fcSetMeta("seed",`<b>Snapshot</b> · 11 Jun 2026 · live feed unreachable`);
+    fcSetMeta("seed",`<b>Snapshot</b> · 11 Jun 2026`);
   }finally{ btn&&btn.classList.remove("loading"); }
 }
 function applyPresetInitial(){ fcTimeline=seedTimeline(); applyPreset("contenders"); }
