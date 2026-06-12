@@ -257,6 +257,11 @@
   .fc-refresh.loading{opacity:.55;cursor:progress}
   .fc-refresh.loading svg{animation:spin .8s linear infinite}
   .fc-chart{width:100%;height:clamp(370px,53vh,580px)}
+  /* Odds = pure full-viewport hero: just the bars, no scroll, no chrome */
+  body[data-view="odds"] main{padding-top:12px;padding-bottom:0}
+  body[data-view="odds"] footer,body[data-view="odds"] .disclaimer-wrap{display:none}
+  .forecast-hero{padding:0!important}
+  body[data-view="odds"] .fc-chart{height:calc(100vh - 104px)}
   .fc-fallback{display:none;padding:18px 6px 6px}
   .fc-fb-row{display:flex;align-items:center;gap:10px;margin:7px 0;font-size:12px}
   .fc-fb-row .fb-name{width:150px;flex:0 0 auto;color:var(--txt);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -400,38 +405,8 @@
 
 <main id="app">
 <section class="view forecast-hero active" data-view="odds">
-  <div class="fc-head">
-    <div>
-      <div class="hero-tag">Canada · Mexico · United States</div>
-      <h1>Who lifts it <em>all?</em></h1>
-      <p class="sub">Live win-probability for all 48 nations — watch the race to the trophy evolve, match by match. Every column sums to 100%; teams fade to zero as they're knocked out.</p>
-    </div>
-    <div class="fc-meta seed" id="fc-meta"><span class="dot"></span>Loading forecast…</div>
-  </div>
-
-  <div class="fc-card">
-    <div class="fc-toolbar">
-      <div class="fc-presets" id="fc-presets">
-        <button data-preset="contenders" class="active">Top contenders</button>
-        <button data-preset="all">All 48</button>
-        <button data-preset="clear">Clear</button>
-      </div>
-      <input id="fc-search" placeholder="＋ Add a team…" list="fc-teamlist" autocomplete="off" />
-      <datalist id="fc-teamlist"></datalist>
-      <button id="fc-refresh" class="fc-refresh" onclick="loadForecast(true)" title="Re-fetch live market data">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
-        Refresh
-      </button>
-    </div>
-    <div id="fc-chart" class="fc-chart"></div>
-    <div id="fc-fallback" class="fc-fallback"></div>
-    <div class="fc-foot">
-      <span id="fc-foot-left"><b>Tip:</b> click a team in the legend to toggle it · double-click to isolate one</span>
-      <span id="fc-foot-right"></span>
-    </div>
-  </div>
-
-  <div class="fc-foot" style="border:0;padding-top:0"><span></span><span id="fc-foot-hint" style="font-size:11px;color:var(--muted-2)">Click any flag elsewhere on the site to open that team's page.</span></div>
+  <div id="fc-chart" class="fc-chart"></div>
+  <div id="fc-fallback" class="fc-fallback"></div>
 </section>
 
   <!-- ============ MATCHES ============ -->
@@ -563,8 +538,8 @@
   <div>FIFA World Cup 26™ — Local Hub · Built as a single static page</div>
   <div>Groups &amp; fixtures verified · pre-tournament state · 11 Jun 2026</div>
 </footer>
-<div style="max-width:1240px;margin:0 auto;padding:0 24px 40px">
-  <span class="disclaimer">ℹ️ Groups and Matchday-1 fixtures are the real, verified 2026 draw. No results are shown because the tournament is just kicking off. To add scores as they happen, edit the <code>hs</code>/<code>as</code> values in the <code>MATCHES</code> array near the bottom of this file — standings recalculate automatically.</span>
+<div class="disclaimer-wrap" style="max-width:1240px;margin:0 auto;padding:0 24px 40px">
+  <span class="disclaimer">ℹ️ Group standings update live from played results; the full 104-match schedule (group + knockout) is bundled, with knockout teams shown as bracket slots until they're decided.</span>
 </div>
 
 <script>
@@ -832,7 +807,7 @@ function seedTimeline(){
   const series={}; for(const c of ALL_CODES) series[c]=[SEED[c]||0];
   return {dates:[today], series, live:false, single:true};
 }
-function fcSetMeta(cls,html){ const e=$("#fc-meta"); e.className="fc-meta "+cls; e.innerHTML=`<span class="dot"></span>${html}`; }
+function fcSetMeta(cls,html){ const e=$("#fc-meta"); if(!e) return; e.className="fc-meta "+cls; e.innerHTML=`<span class="dot"></span>${html}`; }
 
 /* ---- live fetch from Polymarket ---- */
 async function fetchHistory(code){
@@ -932,7 +907,7 @@ function renderForecast(tl){
     annotations:[{x:midFuture, y:0.5, xref:"x", yref:"paper", text:"Matches to come — odds fill in daily", showarrow:false, font:{size:12,color:"#565d76"}}],
   };
   Plotly.react("fc-chart", traces, layout, {displayModeBar:false, responsive:true});
-  $("#fc-teamlist").innerHTML=ranked.map(c=>`<option value="${tname(c)}">`).join("");
+  const dl=$("#fc-teamlist"); if(dl) dl.innerHTML=ranked.map(c=>`<option value="${tname(c)}">`).join("");
 }
 
 function renderFallback(tl,ranked){
@@ -974,11 +949,9 @@ async function loadForecast(force){
     try{ localStorage.setItem(PM_CFG.cacheKey, JSON.stringify({ts:Date.now(),tl})); }catch(e){}
     const span=`${tl.dates[0]} → ${tl.dates[tl.dates.length-1]}`;
     fcSetMeta("live",`<b>Live</b> · Polymarket · ${tl.dates.length} days (${span})`);
-    $("#fc-foot-right").innerHTML=`Source: <b>Polymarket</b> prediction markets · normalized to 100%`;
     renderKeepingSelection(tl);
   }catch(e){
     fcSetMeta("seed",`<b>Snapshot</b> · 11 Jun 2026 · live feed unreachable`);
-    $("#fc-foot-right").innerHTML=`Showing baked snapshot · couldn't reach live market data`;
   }finally{ btn&&btn.classList.remove("loading"); }
 }
 function applyPresetInitial(){ fcTimeline=seedTimeline(); applyPreset("contenders"); }
@@ -989,8 +962,8 @@ function renderKeepingSelection(tl){
   if(firstLive){ applyPreset("contenders"); } else { renderForecast(tl); }
 }
 
-/* search box: type/pick a team to add it to the chart */
-$("#fc-search").addEventListener("change",e=>{
+/* search box: type/pick a team to add it to the chart (only if the box exists) */
+$("#fc-search") && $("#fc-search").addEventListener("change",e=>{
   const q=e.target.value.trim().toLowerCase(); if(!q||!fcTimeline) return;
   const c=ALL_CODES.find(x=>tname(x).toLowerCase()===q)||ALL_CODES.find(x=>tname(x).toLowerCase().includes(q));
   if(c){ fcVisible.add(c); document.querySelectorAll("#fc-presets button").forEach(b=>b.classList.remove("active")); renderForecast(fcTimeline); }
@@ -1294,6 +1267,7 @@ const NAV_OF={odds:"odds",matches:"matches",groups:"groups",teams:"teams",team:"
 function route(){
   const [view,param]=(location.hash||"").replace(/^#\/?/,"").split("/");
   const v=document.querySelector(`.view[data-view="${view}"]`)?view:"odds";
+  document.body.setAttribute("data-view",v);
   document.querySelectorAll(".view").forEach(s=>s.classList.toggle("active",s.dataset.view===v));
   document.querySelectorAll("#nav a").forEach(a=>a.classList.toggle("active",a.dataset.view===NAV_OF[v]));
   ({matches:renderMatchList,
