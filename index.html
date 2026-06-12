@@ -339,6 +339,13 @@
   .player .pp{font-size:10px;color:var(--muted-2)}
 
   /* ---------- Stadium detail ---------- */
+  .std-layout{display:grid;grid-template-columns:minmax(0,0.92fr) minmax(0,1.08fr);gap:20px;align-items:stretch}
+  @media(max-width:720px){.std-layout{grid-template-columns:1fr}}
+  .std-left{display:flex;flex-direction:column}
+  .std-photo{width:100%;flex:1;min-height:240px;max-height:400px;object-fit:cover;border-radius:var(--radius);border:1px solid var(--line);background:rgba(255,255,255,.04);display:block}
+  .std-noimg{display:grid;place-items:center;font-size:64px}
+  .photo-credit{font-size:10px;color:var(--muted-2);margin:5px 2px 0}
+  .std-right h2{font-size:clamp(24px,4vw,38px);font-weight:900;letter-spacing:-.5px;margin-bottom:8px}
   .factlist{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px}
   .factrow{background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:12px;padding:12px 15px}
   .factrow .k{font-size:10px;color:var(--muted);letter-spacing:.7px;text-transform:uppercase}
@@ -1083,13 +1090,16 @@ function renderTeamDetail(code){
     </div>`;
 }
 function ageFrom(dob){ if(!dob) return ""; const d=new Date(dob+"T00:00:00Z"),n=new Date(); let a=n.getUTCFullYear()-d.getUTCFullYear(); const m=n.getUTCMonth()-d.getUTCMonth(); if(m<0||(m===0&&n.getUTCDate()<d.getUTCDate()))a--; return a; }
-function playerChip(r){ return `<div class="player"><div><div class="pn">${r.nm}${r.n?` <span style="color:var(--muted-2);font-weight:600">#${r.n}</span>`:""}</div><div class="pp">${r.cl||"—"} · ${ageFrom(r.dob)}y${r.c!=null?` · ${r.c} caps`:""}</div></div></div>`; }
+// Shared player card — identical on the Players page and team pages.
+function playerCard(code,r){ return `<a class="pcard" href="#/team/${code}" title="${tname(code)}">
+    <span class="pflag">${flag(code)}</span>
+    <div class="pinfo"><div class="pname">${r.nm}${r.n?` <span class="pno">#${r.n}</span>`:""}</div><div class="pclub">${r.cl||"—"}</div></div>
+    <div class="pmeta"><span class="ppos ${r.p}">${r.p||"?"}</span><span class="page">${ageFrom(r.dob)||"–"}y</span>${r.c!=null?`<span>${r.c} caps</span>`:""}</div>
+  </a>`; }
 function teamSquadHtml(code){
-  const sq=PLAYERS[code]||[]; if(!sq.length) return '<div class="psub">Squad not available.</div>';
-  return [["GK","Goalkeepers"],["DF","Defenders"],["MF","Midfielders"],["FW","Forwards"]].map(([k,lbl])=>{
-    const ps=sq.filter(r=>r.p===k); if(!ps.length) return "";
-    return `<div style="margin-bottom:12px"><div class="psub" style="margin:2px 0 6px;color:var(--muted)">${lbl} · ${ps.length}</div><div class="players-grid">${ps.map(playerChip).join("")}</div></div>`;
-  }).join("");
+  const sq=(PLAYERS[code]||[]).slice().sort((a,b)=>(a.n||99)-(b.n||99));
+  if(!sq.length) return '<div class="psub">Squad not available.</div>';
+  return `<div class="players-page-grid">${sq.map(r=>playerCard(code,r)).join("")}</div>`;
 }
 
 /* ---- players page (from baked PLAYERS) ---- */
@@ -1106,15 +1116,7 @@ function renderPlayers(){
     : s==="ageDesc"?(ageFrom(b.dob)-ageFrom(a.dob))||a.nm.localeCompare(b.nm)
     :               (b.c||0)-(a.c||0)||a.nm.localeCompare(b.nm));
   $("#players-count").textContent=`${list.length.toLocaleString()} of 1,248 players`;
-  $("#players-grid").innerHTML=list.map(r=>`
-    <a class="pcard" href="#/team/${r.code}" title="${tname(r.code)}">
-      <span class="pflag">${flag(r.code)}</span>
-      <div class="pinfo">
-        <div class="pname">${r.nm}${r.n?` <span class="pno">#${r.n}</span>`:""}</div>
-        <div class="pclub">${r.cl||"—"}</div>
-      </div>
-      <div class="pmeta"><span class="ppos ${r.p}">${r.p||"?"}</span><span class="page">${ageFrom(r.dob)||"–"}y</span>${r.c!=null?`<span>${r.c} caps</span>`:""}</div>
-    </a>`).join("")||`<div class="empty-state"><div class="big">🔍</div><b>No players</b><small>Try a different filter.</small></div>`;
+  $("#players-grid").innerHTML=list.map(r=>playerCard(r.code,r)).join("")||`<div class="empty-state"><div class="big">🔍</div><b>No players</b><small>Try a different filter.</small></div>`;
 }
 
 /* ---- stadiums ---- */
@@ -1141,21 +1143,24 @@ function renderStadiumDetail(id){
   const here=MATCHES.filter(m=>{ const v=(venueOf(m[0],m[1])||"").toLowerCase(); return v && (v.includes(s.name.toLowerCase())||(s.wcName&&v.includes(s.wcName.toLowerCase()))); });
   const photo=(typeof STADIUM_IMG!=="undefined"&&STADIUM_IMG[id])||"";
   el.innerHTML=`
-    ${photo?`<img class="std-photo" src="${photo}" alt="${s.name}" loading="lazy" onerror="this.style.display='none'"><div style="font-size:10px;color:var(--muted-2);margin:4px 2px 14px">📷 Photo: Wikimedia Commons</div>`:""}
-    <div class="detail-hero">
-      <div class="bigflag">🏟️</div>
-      <div>
-        <h2>${s.wcName||s.name}</h2>
-        <div class="dh-meta"><span>📍 ${s.city}, ${s.region} · ${COUNTRY_FLAG[s.country]||""} ${s.country}</span>${s.role?`<span>⭐ ${s.role}</span>`:""}</div>
-        <div style="margin-top:7px;color:var(--muted);font-size:13px">🕒 Local time now: <b style="color:var(--txt)">${local}</b></div>
+    <div class="std-layout">
+      <div class="std-left">
+        ${photo?`<img class="std-photo" src="${photo}" alt="${s.name}" loading="lazy" onerror="this.closest('.std-left').querySelector('.std-photo').replaceWith(Object.assign(document.createElement('div'),{className:'std-photo std-noimg',textContent:'🏟️'}))">
+                 <div class="photo-credit">📷 Photo: Wikimedia Commons</div>`
+                :`<div class="std-photo std-noimg">🏟️</div>`}
+        <a class="maps-btn" href="${maps}" target="_blank" rel="noopener">🗺️ Directions on Google Maps</a>
       </div>
-    </div>
-    <a class="maps-btn" href="${maps}" target="_blank" rel="noopener">🗺️ Directions on Google Maps</a>
-    <div class="factlist" style="margin-top:16px">
-      <div class="factrow"><div class="k">Capacity</div><div class="v">${(s.capacity||0).toLocaleString()}</div></div>
-      <div class="factrow"><div class="k">WC matches</div><div class="v">${s.matches||"—"}</div></div>
-      <div class="factrow"><div class="k">Official name</div><div class="v" style="font-size:14px">${s.name}</div></div>
-      <div class="factrow"><div class="k">Timezone</div><div class="v" style="font-size:13px">${s.tz.replace("America/","")}</div></div>
+      <div class="std-right">
+        <h2>${s.wcName||s.name}</h2>
+        <div class="dh-meta" style="color:var(--muted);font-size:13px;display:flex;gap:14px;flex-wrap:wrap"><span>📍 ${s.city}, ${s.region} · ${COUNTRY_FLAG[s.country]||""} ${s.country}</span>${s.role?`<span>⭐ ${s.role}</span>`:""}</div>
+        <div style="margin-top:8px;color:var(--muted);font-size:13px">🕒 Local time now: <b style="color:var(--txt)">${local}</b></div>
+        <div class="factlist" style="margin-top:16px">
+          <div class="factrow"><div class="k">Capacity</div><div class="v">${(s.capacity||0).toLocaleString()}</div></div>
+          <div class="factrow"><div class="k">WC matches</div><div class="v">${s.matches||"—"}</div></div>
+          <div class="factrow"><div class="k">Official name</div><div class="v" style="font-size:14px">${s.name}</div></div>
+          <div class="factrow"><div class="k">Timezone</div><div class="v" style="font-size:13px">${s.tz.replace("America/","")}</div></div>
+        </div>
+      </div>
     </div>
     ${s.facts&&s.facts.length?`<div class="stat-panel" style="margin-top:16px"><h3><span class="ic" style="background:rgba(124,92,255,.15)">🔎</span>Did you know</h3><div style="font-size:13px;color:var(--muted);line-height:1.85">${s.facts.map(f=>`<div>• ${f}</div>`).join("")}</div></div>`:""}
     ${here.length?`<div class="stat-panel" style="margin-top:16px"><h3><span class="ic" style="background:rgba(245,197,66,.15)">📅</span>Matches here</h3>${here.map(matchMiniRow).join("")}</div>`:""}`;
