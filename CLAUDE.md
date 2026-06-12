@@ -22,8 +22,9 @@ Groups, Teams, Players and Stadiums pages with detail views.
   script reads those globals. Plotly is the only external lib (CDN).
 - **Conventions inside index.html:** every flag links to `#/team/<CODE>` (`flagLink`);
   every player card links to `#/player/<id>` (`playerCard`); `.lnk`/`teamLink`/
-  `stadiumLink`/`groupLink` make mentions navigable. Times render in `Europe/Luxembourg`
-  via `Intl` (`fmtZone`).
+  `stadiumLink`/`groupLink` make mentions navigable. Match times render in the
+  **viewer's** timezone via `Intl` (`fmtZone` + `LOCAL_TZ`/`TZ_BADGE`); stadium pages
+  use the stadium's own tz.
 
 ## Files
 ### Hand-edited
@@ -40,6 +41,7 @@ Loaded in `index.html`'s `<head>`; each defines a global:
 | `player-img.js` | `PLAYER_IMG` (701/1248) | player headshots (Wikimedia, hotlinked) | `scripts/player-photos.mjs` |
 | `history.js` / `history.json` | `HISTORY` `{updated,snapshots:[{date,p:{code:price}}]}` | daily win-probability archive | `scripts/odds-snapshot.mjs` (+ `backfill-history.mjs`) |
 | `assets/crests/<CODE>.png` (48) | — | self-hosted team crests | `scripts/fetch-crests.mjs` |
+| `assets/og.png` | — (referenced by the `og:image`/`twitter:image` meta tags) | 1200×630 social-share card drawn from the odds archive | `scripts/og-image.py` (Pillow) |
 
 The app also has small **baked-in** literals inside `index.html`: `T` (48 teams →
 `[name,flag,group,confederation]`), `GROUPS`, `STADIUMS` (16 venues w/ lat/lng + IANA
@@ -56,10 +58,12 @@ tz), `SEED`/`TOKENS` (Polymarket fallback snapshot + token ids), `FEATURE_COLORS
 - **`player-photos.mjs`** — resolve player headshots via the squad page's article links
   → `player-img.js`.
 - **`fetch-crests.mjs`** — download crests into `assets/crests/` and repoint `TEAM_IMG`.
+- **`og-image.py`** (Python 3 + Pillow, not Node) — render `assets/og.png`, the
+  social-share card, from `history.json`.
 
 ### Automation (`.github/workflows/`)
-- **`odds-snapshot.yml`** — cron daily 06:00 UTC → `odds-snapshot.mjs`, commits as
-  `wc26-odds-bot`.
+- **`odds-snapshot.yml`** — cron daily 06:00 UTC → `odds-snapshot.mjs`, then re-renders
+  `assets/og.png` (`og-image.py`); commits as `wc26-odds-bot`.
 - **`results-snapshot.yml`** — cron every 3h (offset :30) → `results-snapshot.mjs`,
   commits as `wc26-results-bot` (rebase-before-push to avoid racing the odds bot).
 - Both declare `permissions: contents: write` (works even though the repo's default

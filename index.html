@@ -5,6 +5,20 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>FIFA World Cup 2026</title>
 <meta name="theme-color" content="#06070d" />
+<meta name="description" content="World Cup 2026 hub: daily market-implied title odds for all 48 teams, full 104-match schedule, live group standings, every squad and all 16 stadiums." />
+<!-- Social cards: assets/og.png is regenerated daily by the odds-snapshot workflow -->
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="World Cup 2026 Hub" />
+<meta property="og:title" content="World Cup 2026 — who wins? Live title odds" />
+<meta property="og:description" content="Daily market-implied win probabilities for all 48 teams, plus the full schedule, groups, squads and stadiums. Updated every day of the tournament." />
+<meta property="og:url" content="https://luiservela.github.io/worldcup-2026/" />
+<meta property="og:image" content="https://luiservela.github.io/worldcup-2026/assets/og.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="World Cup 2026 — who wins? Live title odds" />
+<meta name="twitter:description" content="Daily market-implied win probabilities for all 48 teams. Updated every day of the tournament." />
+<meta name="twitter:image" content="https://luiservela.github.io/worldcup-2026/assets/og.png" />
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='%23f5c542'/><stop offset='0.55' stop-color='%23e8254a'/><stop offset='1' stop-color='%237c5cff'/></linearGradient></defs><rect width='64' height='64' rx='14' fill='%23060710'/><rect x='5' y='5' width='54' height='54' rx='12' fill='url(%23g)'/><rect x='9.5' y='9.5' width='45' height='45' rx='9' fill='%23060710'/><text x='32' y='45' font-family='Arial,Helvetica,sans-serif' font-size='30' font-weight='900' text-anchor='middle' fill='%23f5c542'>26</text></svg>" />
 <style>
   :root{
@@ -300,6 +314,21 @@
   .fc-crest-ctl input[type=range]{width:92px;accent-color:var(--gold)}
   body[data-view="odds"] .fc-chart{height:calc(100vh - 156px);height:calc(100dvh - 156px)}
   @media(max-width:640px){ body[data-view="odds"] .fc-chart{height:calc(100dvh - 210px)} }
+  /* "Today's movers" strip (visible only when the archive has ≥2 days): the chart
+     height calcs above get a .has-movers variant that subtracts the strip's 38px. */
+  body.has-movers[data-view="odds"] .fc-chart{height:calc(100vh - 194px);height:calc(100dvh - 194px)}
+  @media(max-width:640px){ body.has-movers[data-view="odds"] .fc-chart{height:calc(100dvh - 248px)} }
+  .fc-movers{display:flex;align-items:center;gap:8px;padding:2px 2px 10px;overflow-x:auto;scrollbar-width:none;white-space:nowrap}
+  .fc-movers::-webkit-scrollbar{display:none}
+  .fc-movers[hidden]{display:none}
+  .fc-movers .mv-lab{flex:0 0 auto;font-size:10px;font-weight:800;letter-spacing:1.5px;color:var(--muted-2);text-transform:uppercase}
+  .fc-movers .mv{flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--txt);background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:999px;padding:5px 11px;transition:.16s}
+  .fc-movers .mv:hover{border-color:var(--line-strong)}
+  .fc-movers .mv b{font-variant-numeric:tabular-nums}
+  .fc-movers .mv.up::before{content:"▲";font-size:9px;color:var(--grn)}
+  .fc-movers .mv.dn::before{content:"▼";font-size:9px;color:var(--red)}
+  .fc-movers .mv.up b{color:var(--grn)}
+  .fc-movers .mv.dn b{color:var(--red)}
   .fc-chart-wrap{position:relative}
   #fc-crests{position:absolute;inset:0;pointer-events:none;overflow:visible;z-index:5}
   .fc-crest{position:absolute;transform:translate(-50%,-50%);border-radius:50%;overflow:hidden;background:#0b0e1a;border:2px solid rgba(255,255,255,.32);box-shadow:0 3px 10px rgba(0,0,0,.55);display:grid;place-items:center;pointer-events:auto;cursor:pointer;text-decoration:none;transition:transform .12s,border-color .12s}
@@ -475,6 +504,7 @@
       <button data-preset="all">All</button>
     </div>
     <div class="fc-bar-side fc-bar-right">
+      <button id="fc-share" class="fc-colorbtn" title="Share this chart as an image">📤 Share</button>
       <button id="fc-options-btn" class="fc-colorbtn" title="Display options" aria-expanded="false">⚙️ Options</button>
       <div class="fc-options" id="fc-options" hidden>
         <button id="fc-colormode" class="fc-colorbtn" title="Bar colours: Vibrant → Team → Complementary → Tartan">🎨 Tartan</button>
@@ -482,6 +512,7 @@
       </div>
     </div>
   </div>
+  <div id="fc-movers" class="fc-movers" hidden></div>
   <div class="fc-chart-wrap">
     <div id="fc-chart" class="fc-chart"></div>
     <div id="fc-crests"></div>
@@ -493,7 +524,7 @@
   <section class="view" data-view="matches">
     <div class="section-head">
       <h2><span class="bar"></span>Matches</h2>
-      <span class="hint">All 104 fixtures · times in your local Luxembourg time</span>
+      <span class="hint" id="matches-hint">All 104 fixtures · times shown in your time zone</span>
     </div>
     <div class="match-filters">
       <div class="seg" id="time-filter">
@@ -651,8 +682,8 @@ function renderMatchList(){
   let html="", lastDay="";
   for(const r of list){
     const played=r.hs!=null;
-    const dayLbl = r.utc ? fmtZone(r.utc,LUX,{weekday:"long",day:"numeric",month:"short"}) : "TBD";
-    const timeLbl= r.utc ? fmtZone(r.utc,LUX,{hour:"2-digit",minute:"2-digit"}) : "";
+    const dayLbl = r.utc ? fmtZone(r.utc,LOCAL_TZ,{weekday:"long",day:"numeric",month:"short"}) : "TBD";
+    const timeLbl= r.utc ? fmtZone(r.utc,LOCAL_TZ,{hour:"2-digit",minute:"2-digit"}) : "";
     if(dayLbl!==lastDay){ html+=`<div class="daydiv">${dayLbl}</div>`; lastDay=dayLbl; }
     const sid=r.vid||stadiumIdForVenue(r.venue);
     const coded = r.hc && r.ac;   // group game, or a knockout tie whose teams are now known
@@ -668,7 +699,7 @@ function renderMatchList(){
     const gm=/^Group ([A-L])$/.exec(r.stage);
     const stageHtml = gm ? groupLink(gm[1],r.stage) : r.stage;
     html+=`<div class="mrow">
-      <div class="when"><b>${timeLbl}</b><small>${r.utc?"Lux time":""}</small></div>
+      <div class="when"><b>${timeLbl}</b><small>${r.utc?TZ_BADGE:""}</small></div>
       <div class="teams">${teamsHtml}</div>
       <div class="meta"><span class="stage">${stageHtml}${r.st==="live"?" · ● LIVE":""}</span><span class="venue">📍 ${stadiumLink(sid,r.venue)}</span></div>
     </div>`;
@@ -1154,6 +1185,95 @@ $("#fc-search") && $("#fc-search").addEventListener("change",e=>{
 document.querySelectorAll("#fc-presets button").forEach(b=>b.addEventListener("click",()=>applyPreset(b.dataset.preset)));
 
 /* =========================================================================
+   📤 SHARE — export the visible chart as a 1200×630 PNG with the site URL
+   baked in. Uses the Web Share API where available (mobile), else downloads.
+   ========================================================================= */
+const SITE_URL="https://luiservela.github.io/worldcup-2026/";
+// The DOM crest badges aren't part of the Plotly canvas, so the export labels
+// each visible team with a text annotation at today's bar instead.
+function fcShareAnnotations(){
+  if(!fcLast) return [];
+  const {days,today,M,ranked}=fcLast;
+  const idx=days.indexOf(today); if(idx<0) return [];
+  const x=new Date(Date.parse(today+"T00:00:00Z")+DAY*0.55).toISOString();
+  let cum=0; const out=[];
+  for(const c of ranked){
+    const share=M[c][idx]||0;
+    if(fcVisible.has(c) && share>2.5){
+      out.push({x, y:100-(cum+share/2), xref:"x", yref:"y", xanchor:"left", showarrow:false,
+        text:`${flag(c)} <b>${tname(c)}</b> ${share.toFixed(1)}%`,
+        font:{size:13,color:"#eef1fb"}, bgcolor:"rgba(6,7,13,.72)", borderpad:3});
+    }
+    cum+=share;
+  }
+  return out;
+}
+async function fcShare(){
+  const btn=$("#fc-share"), gd=document.getElementById("fc-chart");
+  if(typeof Plotly==="undefined"||!gd||!gd.data){      // no chart (offline fallback): share the link itself
+    if(navigator.share){ try{ await navigator.share({title:document.title,url:SITE_URL}); }catch(e){} }
+    return;
+  }
+  const old=btn.textContent; btn.disabled=true; btn.textContent="📤 Rendering…";
+  try{
+    const today=new Date().toISOString().slice(0,10);
+    const stamp=new Intl.DateTimeFormat("en-GB",{day:"numeric",month:"long",year:"numeric"}).format(new Date());
+    const anns=[...(gd.layout.annotations||[]), ...fcShareAnnotations(),
+      {x:0.01,y:0.99,xref:"paper",yref:"paper",xanchor:"left",yanchor:"top",showarrow:false,
+       text:`<b>World Cup 2026 — who wins?</b>  Market-implied title odds · ${stamp}`,
+       font:{size:16,color:"#eef1fb"}, bgcolor:"rgba(6,7,13,.72)", borderpad:5},
+      {x:0.995,y:0.02,xref:"paper",yref:"paper",xanchor:"right",yanchor:"bottom",showarrow:false,
+       text:"luiservela.github.io/worldcup-2026", font:{size:13,color:"rgba(245,197,66,.95)"},
+       bgcolor:"rgba(6,7,13,.72)", borderpad:4}];
+    const layout=Object.assign({},gd.layout,{
+      width:1200, height:630, showlegend:false,
+      paper_bgcolor:"#06070d", plot_bgcolor:"#0b0e1a",
+      xaxis:Object.assign({},gd.layout.xaxis,{dtick:DAY}),   // full-width export → daily ticks
+      annotations:anns,
+    });
+    const url=await Plotly.toImage({data:gd.data,layout},{format:"png",width:1200,height:630,scale:2});
+    const blob=await (await fetch(url)).blob();
+    const file=new File([blob],`worldcup2026-odds-${today}.png`,{type:"image/png"});
+    if(navigator.canShare && navigator.canShare({files:[file]})){
+      await navigator.share({files:[file], title:"World Cup 2026 — live title odds", text:"Who wins the World Cup? Live market odds → "+SITE_URL});
+    }else{
+      const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=file.name;
+      document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),5000);
+    }
+  }catch(e){ /* user closed the share sheet, or export failed — leave the page untouched */ }
+  finally{ btn.disabled=false; btn.textContent=old; }
+}
+$("#fc-share") && $("#fc-share").addEventListener("click",fcShare);
+
+/* =========================================================================
+   📈 TODAY'S MOVERS — day-over-day change in win probability, straight from
+   the owned archive (history.js). Shown as a slim chip strip above the chart;
+   hidden (and the chart reclaims the space) when there aren't 2 days yet.
+   ========================================================================= */
+function computeMovers(){
+  try{
+    if(typeof HISTORY==="undefined") return null;
+    const snaps=(HISTORY.snapshots||[]).slice().sort((a,b)=>a.date.localeCompare(b.date));
+    if(snaps.length<2) return null;
+    const cur=snaps[snaps.length-1].p||{}, prev=snaps[snaps.length-2].p||{};
+    const d=ALL_CODES.filter(c=>cur[c]!=null&&prev[c]!=null)
+      .map(c=>({c, pp:(cur[c]-prev[c])*100}))           // percentage-point move
+      .sort((a,b)=>b.pp-a.pp);
+    const up=d.filter(o=>o.pp>=0.05).slice(0,3);
+    const dn=d.filter(o=>o.pp<=-0.05).slice(-3).reverse();   // biggest faller first
+    return (up.length||dn.length)?{up,dn}:null;
+  }catch(e){ return null; }
+}
+function renderMovers(){
+  const el=$("#fc-movers"); if(!el) return;
+  const m=computeMovers();
+  if(!m){ el.hidden=true; document.body.classList.remove("has-movers"); return; }
+  const chip=o=>`<a class="mv ${o.pp>0?'up':'dn'}" href="#/team/${o.c}" title="${tname(o.c)}: ${o.pp>0?'+':'−'}${Math.abs(o.pp).toFixed(2)} percentage points of title probability since yesterday">${flag(o.c)} ${tname(o.c)} <b>${o.pp>0?'+':'−'}${Math.abs(o.pp).toFixed(1)}%</b></a>`;
+  el.innerHTML=`<span class="mv-lab">Today's movers</span>`+m.up.map(chip).join("")+m.dn.map(chip).join("");
+  el.hidden=false; document.body.classList.add("has-movers");
+}
+
+/* =========================================================================
    SPA: pages, detail views, hash router, and the curated static data layer.
    Reliable static data (stadiums, fixtures, facts) is baked in; live data
    (probabilities, scores) is fetched. Flags everywhere link to #/team/<code>.
@@ -1193,7 +1313,11 @@ function titleOdds(h,a,P){ // floored so no team is ever exactly 0%
 const utcOf  =(h,a)=>(FIX[h+"-"+a]||[])[0]||null;
 const venueOf=(h,a)=>(FIX[h+"-"+a]||[])[1]||null;
 
-const LUX="Europe/Luxembourg";
+// Match times render in the VIEWER's timezone (the audience is worldwide);
+// stadium pages still use the stadium's own tz. TZ_BADGE is a short label
+// like "CEST" / "GMT-6" for the UI.
+const LOCAL_TZ=(()=>{ try{ return Intl.DateTimeFormat().resolvedOptions().timeZone||"UTC"; }catch(e){ return "UTC"; } })();
+const TZ_BADGE=(()=>{ try{ const p=new Intl.DateTimeFormat("en-GB",{timeZone:LOCAL_TZ,timeZoneName:"short"}).formatToParts(new Date()).find(x=>x.type==="timeZoneName"); return p?p.value:"local"; }catch(e){ return "local"; } })();
 function fmtZone(iso,tz,opts){ try{ return new Intl.DateTimeFormat("en-GB",Object.assign({timeZone:tz,hour12:false},opts)).format(new Date(iso)); }catch(e){ return ""; } }
 
 // Current normalized win-the-cup probabilities (live if loaded, else seed).
@@ -1244,7 +1368,7 @@ function groupTable(g,tbl,hi){
 // Accepts a normalized object {hc,ac,hs,as,utc,round}. Works for group and resolved knockout.
 function matchMiniRow(o){
   const {hc,ac,hs,as,utc}=o, played=hs!=null;
-  const when=utc?fmtZone(utc,LUX,{weekday:"short",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}):"TBD";
+  const when=utc?fmtZone(utc,LOCAL_TZ,{weekday:"short",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}):"TBD";
   return `<div style="display:flex;align-items:center;gap:9px;padding:8px 0;border-top:1px solid var(--line);font-size:13px">
     <span style="color:var(--muted-2);width:150px;flex:0 0 auto;font-size:11px">${when}${o.round?` · ${o.round}`:""}</span>
     ${flagLink(hc)}<a class="lnk" href="#/team/${hc}" style="font-weight:600;flex:1">${tname(hc)}</a>
@@ -1491,6 +1615,10 @@ if(_cs){ CREST_SIZE=+_cs.value||CREST_SIZE; _cs.addEventListener("input",e=>{ CR
 // Extract crest colours; re-render once ready (the default Tartan mode needs them).
 extractCrestColors(()=>{ if(FC_COLORMODE!=="vibrant") renderForecast(); });
 
+// Tell visitors which timezone match times are shown in.
+const _mh=$("#matches-hint"); if(_mh) _mh.textContent=`All 104 fixtures · times in your time zone (${TZ_BADGE})`;
+
+renderMovers();   // before route(): sets .has-movers, which the chart height depends on
 route();
 loadForecast();
 </script>
