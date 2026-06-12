@@ -866,8 +866,9 @@ function barMarker(c){
   if(FC_COLORMODE==="team") return {color:hsl(cols[0]), line:sep};
   if(FC_COLORMODE==="comp") return {color:hsl({...cols[0],h:(cols[0].h+180)%360}), line:sep};
   if(FC_COLORMODE==="tartan"){
-    const c1=cols[0], c2=cols[1]||{...cols[0], l:Math.min(.72,cols[0].l+0.2)};   // 2nd colour, or a lighter shade
-    return {color:hsl(c1), line:sep, pattern:{shape:"x", fgcolor:hsl(c2), bgcolor:hsl(c1), size:10, solidity:0.5}};
+    const c1=cols[0], base2=cols[1]||{...cols[0], h:(cols[0].h+150)%360};        // 2nd colour, or a shifted hue
+    const c2={h:base2.h, s:Math.min(1, base2.s+0.35), l:0.56};                    // punch the weave colour to make it dazzle
+    return {color:hsl(c1), line:sep, pattern:{shape:"x", fgcolor:hsl(c2), bgcolor:hsl(c1), size:10, solidity:0.55}};
   }
   return {color:COLOR[c], line:sep};
 }
