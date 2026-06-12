@@ -475,6 +475,12 @@
     <div id="team-detail"></div>
   </section>
 
+  <!-- ============ PLAYER DETAIL ============ -->
+  <section class="view" data-view="player">
+    <button class="backlink" onclick="history.back()">← Back</button>
+    <div id="player-detail"></div>
+  </section>
+
   <!-- ============ PLAYERS ============ -->
   <section class="view" data-view="players">
     <div class="section-head">
@@ -969,6 +975,13 @@ document.querySelectorAll("#fc-presets button").forEach(b=>b.addEventListener("c
 // Click any flag to open that team's page.
 const flagLink=c=>`<a class="flaglink" href="#/team/${c}" title="${tname(c)}" aria-label="${tname(c)}">${flag(c)}</a>`;
 
+// Give every player a stable id for #/player/<id> and index them for lookup.
+const PLAYER_BY_ID={};
+if(typeof PLAYERS!=="undefined") for(const code in PLAYERS) PLAYERS[code].forEach((r,i)=>{ r._id=code+"-"+(r.n!=null?r.n:"i"+i); r._code=code; PLAYER_BY_ID[r._id]={code,r,i}; });
+const POSNAME={GK:"Goalkeeper",DF:"Defender",MF:"Midfielder",FW:"Forward"};
+function fmtDOB(d){ try{ return new Intl.DateTimeFormat("en-GB",{day:"numeric",month:"short",year:"numeric"}).format(new Date(d+"T00:00:00Z")); }catch(e){ return d; } }
+function ord(n){ const s=["th","st","nd","rd"],v=n%100; return n+(s[(v-20)%10]||s[v]||s[0]); }
+
 // FIX (per-match UTC kickoff + venue) is loaded from schedule.js.
 const utcOf  =(h,a)=>(FIX[h+"-"+a]||[])[0]||null;
 const venueOf=(h,a)=>(FIX[h+"-"+a]||[])[1]||null;
@@ -1091,7 +1104,7 @@ function renderTeamDetail(code){
 }
 function ageFrom(dob){ if(!dob) return ""; const d=new Date(dob+"T00:00:00Z"),n=new Date(); let a=n.getUTCFullYear()-d.getUTCFullYear(); const m=n.getUTCMonth()-d.getUTCMonth(); if(m<0||(m===0&&n.getUTCDate()<d.getUTCDate()))a--; return a; }
 // Shared player card — identical on the Players page and team pages.
-function playerCard(code,r){ return `<a class="pcard" href="#/team/${code}" title="${tname(code)}">
+function playerCard(code,r){ return `<a class="pcard" href="#/player/${r._id}" title="${r.nm}">
     <span class="pflag">${flag(code)}</span>
     <div class="pinfo"><div class="pname">${r.nm}${r.n?` <span class="pno">#${r.n}</span>`:""}</div><div class="pclub">${r.cl||"—"}</div></div>
     <div class="pmeta"><span class="ppos ${r.p}">${r.p||"?"}</span><span class="page">${ageFrom(r.dob)||"–"}y</span>${r.c!=null?`<span>${r.c} caps</span>`:""}</div>
@@ -1100,6 +1113,53 @@ function teamSquadHtml(code){
   const sq=(PLAYERS[code]||[]).slice().sort((a,b)=>(a.n||99)-(b.n||99));
   if(!sq.length) return '<div class="psub">Squad not available.</div>';
   return `<div class="players-page-grid">${sq.map(r=>playerCard(code,r)).join("")}</div>`;
+}
+
+/* ---- player detail (built entirely from baked data + derived context) ---- */
+function renderPlayerDetail(id){
+  const el=$("#player-detail"); if(!el) return;
+  const hit=PLAYER_BY_ID[id];
+  if(!hit){ el.innerHTML=`<div class="empty-state"><div class="big">🧍</div><b>Unknown player</b></div>`; return; }
+  const {code,r}=hit, P=probsNow(), sq=PLAYERS[code];
+  const capsRank=sq.slice().sort((a,b)=>(b.c||0)-(a.c||0)).indexOf(r)+1;
+  const myAge=ageFrom(r.dob);
+  const posMates=sq.filter(p=>p.p===r.p && p!==r);
+  const posAges=sq.filter(p=>p.p===r.p).map(p=>ageFrom(p.dob));
+  const next=MATCHES.filter(m=>(m[0]===code||m[1]===code)&&m[2]==null)
+    .sort((a,b)=>(utcOf(a[0],a[1])||"z").localeCompare(utcOf(b[0],b[1])||"z"))[0];
+  const ctx=[];
+  if(r.c!=null) ctx.push(capsRank===1?`Most-capped player in the squad (${r.c} caps)`:`${ord(capsRank)} most-capped in the squad (${r.c} caps)`);
+  if(r.g) ctx.push(`Has scored ${r.g} international goal${r.g>1?"s":""}`);
+  if(posAges.length>1){ const pn=(POSNAME[r.p]||"player").toLowerCase();
+    if(myAge===Math.min(...posAges)) ctx.push(`Youngest ${pn} in the squad`);
+    else if(myAge===Math.max(...posAges)) ctx.push(`Oldest ${pn} in the squad`); }
+  ctx.push(`One of ${sq.length} players in ${tname(code)}'s squad`);
+  el.innerHTML=`
+    <div class="detail-hero">
+      <div class="bigflag">${flag(code)}</div>
+      <div>
+        <h2>${r.nm} ${r.n!=null?`<span style="color:var(--muted-2);font-weight:700">#${r.n}</span>`:""}</h2>
+        <div class="dh-meta"><span>${POSNAME[r.p]||""}</span><span>${myAge} yrs · b. ${fmtDOB(r.dob)}</span><a href="#/team/${code}" style="color:var(--gold)">${flag(code)} ${tname(code)}</a></div>
+      </div>
+      <div class="dh-pct"><div class="v">${P[code].toFixed(1)}%</div><div class="k">${tname(code)}'s title chance</div></div>
+    </div>
+    <div class="factlist" style="margin-top:16px">
+      <div class="factrow"><div class="k">Club</div><div class="v" style="font-size:15px">${r.cl||"—"}${r.cn?` <span style="color:var(--muted-2);font-size:12px">${r.cn}</span>`:""}</div></div>
+      <div class="factrow"><div class="k">Caps</div><div class="v">${r.c??"—"}</div></div>
+      <div class="factrow"><div class="k">Int'l goals</div><div class="v">${r.g??"—"}</div></div>
+      <div class="factrow"><div class="k">Position</div><div class="v" style="font-size:15px">${POSNAME[r.p]||r.p||"—"}</div></div>
+    </div>
+    <div class="detail-grid">
+      <div class="stat-panel">
+        <h3><span class="ic" style="background:rgba(46,123,255,.15)">📌</span>Squad context</h3>
+        <div style="font-size:13px;color:var(--muted);line-height:1.9">${ctx.map(c=>`<div>• ${c}</div>`).join("")}</div>
+        ${next?`<div class="psub" style="margin:12px 0 4px;color:var(--muted)">Next up · Group ${T[code][2]}</div>${matchMiniRow(next)}`:""}
+      </div>
+      <div class="stat-panel">
+        <h3><span class="ic" style="background:rgba(124,92,255,.15)">👥</span>${POSNAME[r.p]||"Position"}s in the squad</h3>
+        ${posMates.length?`<div class="players-page-grid">${posMates.map(p=>playerCard(code,p)).join("")}</div>`:'<div class="psub">No others listed.</div>'}
+      </div>
+    </div>`;
 }
 
 /* ---- players page (from baked PLAYERS) ---- */
@@ -1178,14 +1238,14 @@ function renderNerd(){
 }
 
 /* ---- hash router ---- */
-const NAV_OF={odds:"odds",matches:"matches",groups:"groups",teams:"teams",team:"teams",players:"players",stadiums:"stadiums",stadium:"stadiums",nerd:"nerd"};
+const NAV_OF={odds:"odds",matches:"matches",groups:"groups",teams:"teams",team:"teams",players:"players",player:"players",stadiums:"stadiums",stadium:"stadiums",nerd:"nerd"};
 function route(){
   const [view,param]=(location.hash||"").replace(/^#\/?/,"").split("/");
   const v=document.querySelector(`.view[data-view="${view}"]`)?view:"odds";
   document.querySelectorAll(".view").forEach(s=>s.classList.toggle("active",s.dataset.view===v));
   document.querySelectorAll("#nav a").forEach(a=>a.classList.toggle("active",a.dataset.view===NAV_OF[v]));
   ({matches:renderMatchList,groups:renderGroups,teams:renderTeams,team:()=>renderTeamDetail(param),
-    players:renderPlayers,stadiums:renderStadiums,stadium:()=>renderStadiumDetail(param),nerd:renderNerd}[v]||(()=>{}))();
+    players:renderPlayers,player:()=>renderPlayerDetail(param),stadiums:renderStadiums,stadium:()=>renderStadiumDetail(param),nerd:renderNerd}[v]||(()=>{}))();
   if(v==="odds" && typeof Plotly!=="undefined"){ const gd=document.getElementById("fc-chart"); if(gd&&gd.data) Plotly.Plots.resize(gd); }
   window.scrollTo(0,0);
 }
