@@ -18,8 +18,13 @@ Groups, Teams, Players and Stadiums pages with detail views.
   `.view[data-view=…]` section. Views: `odds` (landing chart), `matches`, `groups`,
   `teams` + `team/<CODE>`, `players` + `player/<id>`, `stadiums` + `stadium/<id>`.
   `document.body[data-view]` drives page-specific CSS (e.g. full-bleed Odds page).
-- **Data is loaded as globals** via `<script src>` in `<head>` (see below). The inline
-  script reads those globals. Plotly is the only external lib (CDN).
+- **Data is loaded as globals** via `<script src>` at the **end of `<body>`**, right
+  before the inline app script (moved out of `<head>` so first paint doesn't wait for
+  them). Plotly is the only external lib (CDN) — the **basic** bundle, loaded with
+  `defer`; `window.__plotlyReady` upgrades the CSS fallback chart when it arrives.
+- **PWA:** `manifest.webmanifest` + `sw.js` (network-first same-origin, cache-first
+  CDN) make the site installable and offline-capable. On phones (≤720px) the nav
+  becomes a fixed bottom tab bar.
 - **Conventions inside index.html:** every flag links to `#/team/<CODE>` (`flagLink`);
   every player card links to `#/player/<id>` (`playerCard`); `.lnk`/`teamLink`/
   `stadiumLink`/`groupLink` make mentions navigable. Match times render in the
@@ -29,6 +34,8 @@ Groups, Teams, Players and Stadiums pages with detail views.
 ## Files
 ### Hand-edited
 - **`index.html`** — the whole app. The only file you normally edit by hand.
+- **`sw.js`** — service worker (bump `VER` when changing caching behaviour),
+  **`manifest.webmanifest`** — PWA manifest.
 - **`README.md`**, **`CLAUDE.md`** — docs.
 
 ### Generated data (DON'T hand-edit — regenerate with the scripts)
@@ -42,6 +49,7 @@ Loaded in `index.html`'s `<head>`; each defines a global:
 | `history.js` / `history.json` | `HISTORY` `{updated,snapshots:[{date,p:{code:price}}]}` | daily win-probability archive | `scripts/odds-snapshot.mjs` (+ `backfill-history.mjs`) |
 | `assets/crests/<CODE>.png` (48) | — | self-hosted team crests | `scripts/fetch-crests.mjs` |
 | `assets/og.png` | — (referenced by the `og:image`/`twitter:image` meta tags) | 1200×630 social-share card drawn from the odds archive | `scripts/og-image.py` (Pillow) |
+| `assets/icon-*.png` (4) | — (manifest + apple-touch-icon) | PWA/home-screen icons | `scripts/app-icons.py` (Pillow) |
 
 The app also has small **baked-in** literals inside `index.html`: `T` (48 teams →
 `[name,flag,group,confederation]`), `GROUPS`, `STADIUMS` (16 venues w/ lat/lng + IANA
@@ -60,6 +68,8 @@ tz), `SEED`/`TOKENS` (Polymarket fallback snapshot + token ids), `FEATURE_COLORS
 - **`fetch-crests.mjs`** — download crests into `assets/crests/` and repoint `TEAM_IMG`.
 - **`og-image.py`** (Python 3 + Pillow, not Node) — render `assets/og.png`, the
   social-share card, from `history.json`.
+- **`app-icons.py`** (Python 3 + Pillow) — render the four `assets/icon-*.png`
+  PWA/home-screen icons.
 
 ### Automation (`.github/workflows/`)
 - **`odds-snapshot.yml`** — cron daily 06:00 UTC → `odds-snapshot.mjs`, then re-renders
@@ -97,6 +107,11 @@ tz), `SEED`/`TOKENS` (Polymarket fallback snapshot + token ids), `FEATURE_COLORS
   them in as Wikipedia updates.
 - The Odds chart is **responsive in JS**: on narrow widths `renderForecast` thins the
   x-axis ticks and hides the 48-team legend; `placeCrests` scales the badges down.
+  Its height is **flex-driven** (`body[data-view="odds"]` is a flex column) — don't
+  reintroduce fixed `calc(100dvh - Npx)` heights.
+- **The service worker caches same-origin files network-first**, so deploys still win;
+  but if caching behaviour ever seems stuck during testing, unregister the SW in
+  DevTools → Application, or bump `VER` in `sw.js`.
 
 ## Data sources & ownership
 - **Polymarket** (`gamma-api`/`clob.polymarket.com`, CORS-open, no key) — win
