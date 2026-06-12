@@ -36,25 +36,36 @@ console.error("players with a wiki link:", ids.length);
 // 2) Batch-query page images by exact title (follow redirects).
 const titles = [...new Set(Object.values(idToTitle))];
 const norm = s => s.replace(/_/g," ").trim();
+const sleep = ms => new Promise(s=>setTimeout(s,ms));
 const titleToImg = {};
 const CHUNK = 50;
-async function getJSON(url){ for(let a=0;a<3;a++){ try{ const r=await fetch(url,{headers:{ "User-Agent":"wc26-hub-photos/1.0 (personal project)" }}); if(!r.ok){ await new Promise(s=>setTimeout(s,400*(a+1))); continue; } return await r.json(); }catch(e){ await new Promise(s=>setTimeout(s,400*(a+1))); } } return null; }
-for(let i=0;i<titles.length;i+=CHUNK){
-  const url = "https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*&redirects=1"
-    + "&prop=pageimages&piprop=thumbnail&pithumbsize=360&titles=" + encodeURIComponent(titles.slice(i,i+CHUNK).join("|"));
-  const data = await getJSON(url);
-  if(!data || !data.query){ console.error("batch fail", i); continue; }
-  const q = data.query, reroute = {};
-  for(const n of (q.normalized||[])) reroute[norm(n.from)] = n.to;
-  for(const rd of (q.redirects||[])) reroute[norm(rd.from)] = rd.to;
-  const byTitle = {};
-  for(const id in (q.pages||{})){ const p = q.pages[id]; if(p.thumbnail) byTitle[p.title] = p.thumbnail.source; }
-  for(const t of titles.slice(i,i+CHUNK)){
-    const src = byTitle[reroute[norm(t)] || t] || byTitle[t];
-    if(src) titleToImg[t] = src.replace(/\/\d+px-/, "/360px-");
+async function getJSON(url){ for(let a=0;a<6;a++){ try{ const r=await fetch(url,{headers:{ "User-Agent":"wc26-hub-photos/1.0 (personal project)" }}); if(!r.ok){ await sleep(900*(a+1)); continue; } return await r.json(); }catch(e){ await sleep(900*(a+1)); } } return null; }
+async function resolve(list){
+  for(let i=0;i<list.length;i+=CHUNK){
+    const url = "https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*&redirects=1"
+      + "&prop=pageimages&piprop=thumbnail&pithumbsize=500&titles=" + encodeURIComponent(list.slice(i,i+CHUNK).join("|"));
+    const data = await getJSON(url);
+    if(!data || !data.query){ console.error("batch fail", i); await sleep(2000); continue; }
+    const q = data.query, reroute = {};
+    for(const n of (q.normalized||[])) reroute[norm(n.from)] = n.to;
+    for(const rd of (q.redirects||[])) reroute[norm(rd.from)] = rd.to;
+    const byTitle = {};
+    for(const id in (q.pages||{})){ const p = q.pages[id]; if(p.thumbnail) byTitle[p.title] = p.thumbnail.source; }
+    for(const t of list.slice(i,i+CHUNK)){
+      const src = byTitle[reroute[norm(t)] || t] || byTitle[t];
+      if(src) titleToImg[t] = src;   // use Wikipedia's exact thumb URL (rewriting the size 400s)
+    }
+    await sleep(450);   // be gentle / avoid throttling
   }
-  console.error(`${Math.min(i+CHUNK,titles.length)}/${titles.length} titles · ${Object.keys(titleToImg).length} with photo`);
 }
+await resolve(titles);
+let missing = titles.filter(t=>!titleToImg[t]);
+console.error(`pass 1: ${Object.keys(titleToImg).length}/${titles.length} · retrying ${missing.length}`);
+await resolve(missing);    // second pass recovers throttled batches
+missing = titles.filter(t=>!titleToImg[t]);
+console.error(`pass 2: ${Object.keys(titleToImg).length}/${titles.length} · retrying ${missing.length}`);
+await resolve(missing);    // third pass for stragglers
+console.error(`pass 3: ${Object.keys(titleToImg).length}/${titles.length}`);
 
 // 3) Map back to player ids.
 const IMG = {};
