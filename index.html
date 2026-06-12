@@ -825,20 +825,26 @@ const CREST_COLOR={};                 // code -> {h,s,l} extracted from the cres
 let crestColorsReady=false, crestColorsLoading=false;
 function rgb2hsl(r,g,b){ r/=255;g/=255;b/=255; const mx=Math.max(r,g,b),mn=Math.min(r,g,b),d=mx-mn; let h=0; const l=(mx+mn)/2, s=d===0?0:d/(1-Math.abs(2*l-1));
   if(d){ if(mx===r)h=((g-b)/d)%6; else if(mx===g)h=(b-r)/d+2; else h=(r-g)/d+4; h*=60; if(h<0)h+=360; } return [h,s,l]; }
-function dominantColor(data){
+// Up to TWO distinct vivid colours from the crest (so two-tone patterns can use both).
+function dominantColors(data){
   const buckets={};
   for(let i=0;i<data.length;i+=4){
     if(data[i+3]<128) continue;
     const [h,s,l]=rgb2hsl(data[i],data[i+1],data[i+2]);
     if(l<0.12||l>0.9||s<0.22) continue;          // skip transparent / near-white / near-black / grey
-    const b=(Math.round(h/24)*24)%360, o=buckets[b]||(buckets[b]={w:0,s:0,l:0,n:0});
+    const b=(Math.round(h/20)*20)%360, o=buckets[b]||(buckets[b]={w:0,s:0,l:0,n:0});
     o.w+=s; o.s+=s; o.l+=l; o.n++;
   }
-  let best=null,bw=0; for(const b in buckets){ if(buckets[b].w>bw){bw=buckets[b].w;best=+b;} }
-  if(best===null) return null;
-  const o=buckets[best];
-  return { h:best, s:Math.min(.85,Math.max(.5,o.s/o.n)), l:Math.min(.62,Math.max(.46,o.l/o.n)) };
+  const arr=Object.keys(buckets).map(b=>({h:+b, w:buckets[b].w, s:buckets[b].s/buckets[b].n, l:buckets[b].l/buckets[b].n})).sort((a,b)=>b.w-a.w);
+  const out=[];
+  for(const cand of arr){
+    if(out.length>=2) break;
+    if(out.some(o=>Math.min(Math.abs(o.h-cand.h),360-Math.abs(o.h-cand.h))<40)) continue;   // require a distinct hue
+    out.push({ h:cand.h, s:Math.min(.85,Math.max(.5,cand.s)), l:Math.min(.62,Math.max(.46,cand.l)) });
+  }
+  return out;   // [] | [c1] | [c1,c2]
 }
+const hsl=c=>`hsl(${c.h.toFixed(0)} ${Math.round(c.s*100)}% ${Math.round(c.l*100)}%)`;
 const _crestCbs=[];
 function extractCrestColors(cb){
   if(crestColorsReady){ cb&&cb(); return; }
@@ -848,16 +854,24 @@ function extractCrestColors(cb){
   const cv=document.createElement("canvas"); cv.width=cv.height=24; const ctx=cv.getContext("2d",{willReadFrequently:true});
   let done=0; const finish=()=>{ if(++done>=codes.length){ crestColorsReady=true; _crestCbs.splice(0).forEach(f=>f()); } };
   codes.forEach(c=>{ const img=new Image();
-    img.onload=()=>{ try{ ctx.clearRect(0,0,24,24); ctx.drawImage(img,0,0,24,24); CREST_COLOR[c]=dominantColor(ctx.getImageData(0,0,24,24).data); }catch(e){} finish(); };
+    img.onload=()=>{ try{ ctx.clearRect(0,0,24,24); ctx.drawImage(img,0,0,24,24); CREST_COLOR[c]=dominantColors(ctx.getImageData(0,0,24,24).data); }catch(e){} finish(); };
     img.onerror=finish; img.src=TEAM_IMG[c]; });
 }
-function barColor(c){
-  if(FC_COLORMODE==="vibrant") return COLOR[c];
-  const cc=CREST_COLOR[c]; if(!cc) return COLOR[c];
-  const h=FC_COLORMODE==="comp"?(cc.h+180)%360:cc.h;
-  return `hsl(${h.toFixed(0)} ${Math.round(cc.s*100)}% ${Math.round(cc.l*100)}%)`;
+// Full Plotly marker per team, per colour mode.
+function barMarker(c){
+  const sep = FC_COLORMODE==="vibrant" ? {width:0} : {width:0.7,color:"rgba(6,7,13,.5)"};
+  if(FC_COLORMODE==="vibrant") return {color:COLOR[c], line:sep};
+  const cols=CREST_COLOR[c]||[];
+  if(!cols.length) return {color:COLOR[c], line:sep};
+  if(FC_COLORMODE==="team") return {color:hsl(cols[0]), line:sep};
+  if(FC_COLORMODE==="comp") return {color:hsl({...cols[0],h:(cols[0].h+180)%360}), line:sep};
+  if(FC_COLORMODE==="pattern"){
+    const c1=cols[0], c2=cols[1]||{...cols[0], l:Math.min(.72,cols[0].l+0.2)};   // 2nd colour, or a lighter shade
+    return {color:hsl(c1), line:sep, pattern:{shape:"/", fgcolor:hsl(c2), bgcolor:hsl(c1), size:9, solidity:0.5}};
+  }
+  return {color:COLOR[c], line:sep};
 }
-function updateColorBtn(){ const b=$("#fc-colormode"); if(b) b.textContent="🎨 "+({vibrant:"Vibrant",team:"Team",comp:"Complement"}[FC_COLORMODE]); }
+function updateColorBtn(){ const b=$("#fc-colormode"); if(b) b.textContent="🎨 "+({vibrant:"Vibrant",team:"Team",comp:"Complement",pattern:"Pattern"}[FC_COLORMODE]); }
 
 let fcTimeline=null;                 // {dates, series:{code:[...]}, live, single}
 let fcVisible=new Set();             // codes currently shown
@@ -968,7 +982,7 @@ function renderForecast(tl){
   const {days,today,M}=dailyMatrix(fcVisible);
   const traces=ranked.map(c=>({
     type:"bar", x:days, y:M[c], name:fcTitle(c),
-    marker:{color:barColor(c), line:FC_COLORMODE==="vibrant"?{width:0}:{width:0.7,color:"rgba(6,7,13,.5)"}}, visible:fcVisible.has(c)?true:"legendonly", meta:c,
+    marker:barMarker(c), visible:fcVisible.has(c)?true:"legendonly", meta:c,
     hovertemplate:`%{x|%d %b}<br>${fcTitle(c)}: %{y:.1f}%<extra></extra>`,
   }));
   const DAY=86400000, half=DAY/2;
@@ -1426,7 +1440,7 @@ let _fcRz; window.addEventListener("resize",()=>{ clearTimeout(_fcRz); _fcRz=set
 // Bar-colour mode toggle: Vibrant → Team → Complement.
 const _cm=$("#fc-colormode");
 if(_cm) _cm.addEventListener("click",()=>{
-  const m=["vibrant","team","comp"]; FC_COLORMODE=m[(m.indexOf(FC_COLORMODE)+1)%3]; updateColorBtn();
+  const m=["vibrant","team","comp","pattern"]; FC_COLORMODE=m[(m.indexOf(FC_COLORMODE)+1)%m.length]; updateColorBtn();
   if(FC_COLORMODE!=="vibrant" && !crestColorsReady) extractCrestColors(()=>renderForecast());
   renderForecast();
 });
