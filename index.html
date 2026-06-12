@@ -285,7 +285,8 @@
   body[data-view="odds"] .fc-chart{height:calc(100vh - 156px)}
   .fc-chart-wrap{position:relative}
   #fc-crests{position:absolute;inset:0;pointer-events:none;overflow:visible;z-index:5}
-  .fc-crest{position:absolute;transform:translate(-50%,-50%);border-radius:50%;overflow:hidden;background:#0b0e1a;border:2px solid rgba(255,255,255,.32);box-shadow:0 3px 10px rgba(0,0,0,.55);display:grid;place-items:center}
+  .fc-crest{position:absolute;transform:translate(-50%,-50%);border-radius:50%;overflow:hidden;background:#0b0e1a;border:2px solid rgba(255,255,255,.32);box-shadow:0 3px 10px rgba(0,0,0,.55);display:grid;place-items:center;pointer-events:auto;cursor:pointer;text-decoration:none;transition:transform .12s,border-color .12s}
+  .fc-crest:hover{transform:translate(-50%,-50%) scale(1.14);border-color:var(--gold);z-index:9999!important}
   .fc-crest img{width:84%;height:84%;object-fit:contain;display:block}
   .fc-crest .fcx{font-size:60%;line-height:1}
   .fc-fallback{display:none;padding:18px 6px 6px}
@@ -453,7 +454,7 @@
     </div>
     <input id="fc-search" placeholder="🔍 Find a team…" list="fc-teamlist" autocomplete="off" />
     <datalist id="fc-teamlist"></datalist>
-    <label class="fc-crest-ctl" title="Crest size">⬤ <input id="fc-crest-size" type="range" min="14" max="84" value="38" /></label>
+    <label class="fc-crest-ctl" title="Crest size">⬤ <input id="fc-crest-size" type="range" min="14" max="84" value="66" /></label>
   </div>
   <div class="fc-chart-wrap">
     <div id="fc-chart" class="fc-chart"></div>
@@ -819,7 +820,7 @@ let fcTimeline=null;                 // {dates, series:{code:[...]}, live, singl
 let fcVisible=new Set();             // codes currently shown
 let fcSyncing=false, fcListenerReady=false;   // legend↔selection sync (re-normalize on toggle)
 const FC_MARGIN={l:6,r:14,t:10,b:52};         // must match the Plotly layout margins (for crest placement)
-let CREST_SIZE=38, fcLast=null;               // circular crest badges: adjustable size + last render data
+let CREST_SIZE=66, fcLast=null;               // circular crest badges: adjustable size + last render data
 const fcTitle=c=>`${flag(c)} ${tname(c)}`;
 const lastOf=a=>a&&a.length?a[a.length-1]:0;
 
@@ -1004,7 +1005,7 @@ function placeCrests(){
     const src=(typeof TEAM_IMG!=="undefined"&&TEAM_IMG[it.c])||"";
     const z=100+Math.round(it.share*5);   // higher win-share rendered on top
     const inner=src?`<img src="${src}" alt="${tname(it.c)}" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'fcx',textContent:'${flag(it.c)}'}))">`:`<span class="fcx">${flag(it.c)}</span>`;
-    return `<div class="fc-crest" title="${tname(it.c)} — ${it.share.toFixed(1)}%" style="left:${xPix.toFixed(1)}px;top:${it.yPix.toFixed(1)}px;width:${CREST_SIZE}px;height:${CREST_SIZE}px;z-index:${z}">${inner}</div>`;
+    return `<a class="fc-crest" href="#/team/${it.c}" title="${tname(it.c)} — ${it.share.toFixed(1)}% · open team" style="left:${xPix.toFixed(1)}px;top:${it.yPix.toFixed(1)}px;width:${CREST_SIZE}px;height:${CREST_SIZE}px;z-index:${z}">${inner}</a>`;
   }).join("");
 }
 const DAY=86400000;
