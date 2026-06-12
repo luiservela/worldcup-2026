@@ -30,8 +30,8 @@ build. Navigation uses URL hashes, so links are shareable and work directly on
 GitHub Pages: `#/odds`, `#/matches`, `#/team/MEX`, `#/stadium/estadio-azteca`,
 `#/nerd`. **Every flag on the site links to that team's page.**
 
-Pages: **Odds** (landing) · **Matches** · **Groups** · **Teams** · **Stadiums** ·
-**Nerd-stuff**.
+Pages: **Odds** (landing) · **Matches** · **Groups** · **Teams** · **Players** ·
+**Stadiums** · **Nerd-stuff**.
 
 Data strategy: reliable, slow-changing data (the 16 stadiums, fixture kickoffs,
 tournament facts) is **curated and baked in**; data that actually changes
@@ -76,10 +76,18 @@ Grid of all 16 host venues → click for a detail page: capacity, local time
 (live), interesting facts, matches hosted, and a **Google Maps directions** link
 (built from verified coordinates). Data is baked in.
 
+### Players
+Every tournament player (~1,248 across 48 squads) in one searchable page —
+filter by team and position, sort by caps / name / age. Each card shows number,
+position, current club, age and caps, and links to that player's team page.
+Data is **baked into `players.js`**, curated from Wikipedia's final-squad lists
+(name, number, position, date of birth, club, caps, goals — no height; that
+field isn't free). This same dataset powers the full rosters on team pages.
+
 ### Team detail (`#/team/<code>`)
 Flag, group, confederation, current cup-win %, the team's group standings, its
-fixtures, and a **squad** lazy-loaded from TheSportsDB (free tier is partial, so
-it falls back to a Wikipedia squad link).
+fixtures, and the **full squad** (from `players.js`, grouped GK/DF/MF/FW with
+club, age and caps).
 
 ### Nerd-stuff (was "Stats")
 A facts grid mixing **live** aggregates (matches played, goals) with curated
