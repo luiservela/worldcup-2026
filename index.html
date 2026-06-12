@@ -60,6 +60,7 @@
     box-shadow:0 0 0 1px rgba(255,255,255,.12), 0 8px 24px -6px rgba(245,197,66,.5);
   }
   .crest::after{content:"26";position:absolute;inset:3px;border-radius:8px;background:#06070d;display:grid;place-items:center;font-size:14px;font-weight:900;letter-spacing:-1px;color:var(--gold)}
+  .crest-img{height:42px;width:auto;flex:0 0 auto;display:block;filter:drop-shadow(0 4px 10px rgba(0,0,0,.45))}
   .brand b{font-size:16px}
   .brand span{display:block;font-size:10px;letter-spacing:3px;color:var(--muted);font-weight:600;margin-top:1px}
   nav.tabs{display:flex;gap:4px;margin-left:auto;background:rgba(255,255,255,.04);padding:5px;border-radius:13px;border:1px solid var(--line)}
@@ -389,7 +390,7 @@
 <header class="topbar">
   <div class="topbar-inner">
     <a class="brand" href="#/odds">
-      <span class="crest"></span>
+      <img class="crest-img" src="https://upload.wikimedia.org/wikipedia/en/thumb/1/17/2026_FIFA_World_Cup_emblem.svg/330px-2026_FIFA_World_Cup_emblem.svg.png" alt="FIFA World Cup 26" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'crest'}))" />
       <span><b>WORLD CUP</b><span>UNITED 2026</span></span>
     </a>
     <span class="kick-dot"><i></i>MATCHDAY 1</span>
@@ -400,7 +401,6 @@
       <a href="#/teams" data-view="teams">Teams</a>
       <a href="#/players" data-view="players">Players</a>
       <a href="#/stadiums" data-view="stadiums">Stadiums</a>
-      <a href="#/nerd" data-view="nerd">Nerd-stuff</a>
     </nav>
   </div>
 </header>
@@ -518,30 +518,6 @@
     <div id="stadium-detail"></div>
   </section>
 
-  <!-- ============ NERD-STUFF ============ -->
-  <section class="view" data-view="nerd">
-    <div class="section-head">
-      <h2><span class="bar"></span>Nerd-stuff</h2>
-      <span class="hint">Numbers, records &amp; trivia · <span style="color:var(--grn)">LIVE</span> values update as games are played</span>
-    </div>
-    <div class="facts-grid" id="facts-grid"></div>
-    <div class="stats-layout" style="margin-top:24px">
-      <div class="stat-panel">
-        <h3><span class="ic" style="background:rgba(245,197,66,.15)">👟</span>Golden Boot</h3>
-        <div class="psub">Leading goalscorers of the tournament</div>
-        <div class="empty-state">
-          <div class="big">⚽</div>
-          <b>The race begins June 11</b>
-          <small>No goals have been scored yet. The Golden Boot leaderboard will populate as matches are played.</small>
-        </div>
-      </div>
-      <div class="stat-panel">
-        <h3><span class="ic" style="background:rgba(124,92,255,.15)">🔥</span>Did you know</h3>
-        <div class="psub">A record-breaking edition</div>
-        <div id="notes" style="font-size:13px;color:var(--muted);line-height:1.8"></div>
-      </div>
-    </div>
-  </section>
 </main>
 
 <footer>
@@ -577,14 +553,6 @@ const GROUPS = "ABCDEFGHIJKL".split("");
 // MATCHES (72 group games), FIX (per-match UTC kickoff + venue) and KNOCKOUT
 // (32 bracket games) are now loaded from schedule.js — the full 104-match
 // schedule parsed from Wikipedia. Format: [hc,ac,hs,as,status,stage,"",venue,""].
-
-const NOTES = [
-  "🥇 The first 48-team World Cup — up from 32 — with a record 104 matches.",
-  "🌎 The first World Cup co-hosted by three nations: Canada, Mexico &amp; the USA.",
-  "🇲🇽 Estadio Azteca becomes the first stadium to host matches at three different World Cups (1970, 1986, 2026).",
-  "🐦 Curaçao and Cape Verde are among the nations making their World Cup debut.",
-  "🏆 The final is set for 19 July 2026 at MetLife Stadium, New York / New Jersey.",
-];
 
 /* ===================== RENDERING ===================== */
 const $ = s => document.querySelector(s);
@@ -761,7 +729,7 @@ async function updateLive(){
       setStatus("Reached the source but it returned no World Cup events yet. Try again once games are under way.","err");
     }else{
       const {updated,live}=mergeEvents(events);
-      renderMatchList(); renderGroups(); renderNerd();
+      renderMatchList(); renderGroups();
       if(updated){
         setStatus(`✓ Synced ${updated} match${updated>1?"es":""}${live?` · ${live} live now`:""} · standings & stats refreshed`,"ok");
       }else{
@@ -905,22 +873,24 @@ function renderForecast(tl){
   const axEnd  =new Date(new Date(TOUR_END  +"T00:00:00Z").getTime()+half).toISOString();
   const futureX0=new Date(new Date(today+"T00:00:00Z").getTime()+half).toISOString();
   const midFuture=new Date((Date.parse(futureX0)+Date.parse(axEnd))/2).toISOString();
-  // month label row (below the day numbers) + a dotted divider at each month boundary
-  const monthAnns=[], seps=[];
+  // Month row BELOW the day numbers (axis area only): centered month names with a "|" at each boundary.
+  // Pixel yshift keeps them just under the day ticks regardless of chart height.
+  const monthAnns=[];
   { const sMs=Date.parse(TOUR_START+"T00:00:00Z"), eMs=Date.parse(TOUR_END+"T00:00:00Z");
     let m=new Date(sMs); m=new Date(Date.UTC(m.getUTCFullYear(),m.getUTCMonth(),1));
     while(m.getTime()<=eMs){
       const ms0=Math.max(m.getTime(),sMs), ms1=Math.min(Date.UTC(m.getUTCFullYear(),m.getUTCMonth()+1,0),eMs);
-      monthAnns.push({x:new Date((ms0+ms1)/2).toISOString(), y:-0.18, xref:"x", yref:"paper", yanchor:"top", showarrow:false,
-        text:new Intl.DateTimeFormat("en-GB",{month:"long",timeZone:"UTC"}).format(m).toUpperCase(), font:{size:13,color:"#8b92ad"}});
-      if(m.getTime()>sMs){ const bx=new Date(m.getTime()-DAY/2).toISOString();
-        seps.push({type:"line", xref:"x", yref:"paper", x0:bx, x1:bx, y0:0, y1:1, line:{color:"rgba(255,255,255,.22)", width:1.5, dash:"dot"}}); }
+      monthAnns.push({x:new Date((ms0+ms1)/2).toISOString(), y:0, xref:"x", yref:"paper", yanchor:"top", yshift:-26, showarrow:false,
+        text:new Intl.DateTimeFormat("en-GB",{month:"long",timeZone:"UTC"}).format(m), font:{size:12,color:"#8b92ad"}});
+      if(m.getTime()>sMs){ // divider "|" sits in the axis area between the two month names
+        monthAnns.push({x:new Date(m.getTime()-DAY/2).toISOString(), y:0, xref:"x", yref:"paper", yanchor:"top", yshift:-26, showarrow:false,
+          text:"|", font:{size:12,color:"rgba(255,255,255,.35)"}}); }
       m=new Date(Date.UTC(m.getUTCFullYear(),m.getUTCMonth()+1,1));
     } }
   const todayX=new Date(new Date(today+"T00:00:00Z").getTime()+half).toISOString();
   const layout={
     paper_bgcolor:"rgba(0,0,0,0)", plot_bgcolor:"rgba(255,255,255,.022)",   // one ruled canvas across all days
-    margin:{l:6,r:8,t:10,b:56}, bargap:0.12, barmode:"stack",
+    margin:{l:6,r:8,t:10,b:52}, bargap:0.12, barmode:"stack",
     font:{color:"#8b92ad", family:'Segoe UI, system-ui, sans-serif', size:12},
     xaxis:{type:"date", range:[axStart,axEnd], dtick:DAY, tickformat:"%-d", tickfont:{size:10},
       ticks:"outside", ticklen:3, tickcolor:"rgba(255,255,255,.12)",
@@ -929,7 +899,7 @@ function renderForecast(tl){
       showgrid:true, gridcolor:"rgba(255,255,255,.07)", zeroline:false, showline:true, linecolor:"rgba(255,255,255,.14)", mirror:true, fixedrange:true},
     showlegend:true, legend:{bgcolor:"rgba(0,0,0,0)", font:{size:11}, traceorder:"normal"},
     hovermode:"closest",
-    shapes:seps.concat([{type:"line", xref:"x", yref:"paper", x0:todayX, x1:todayX, y0:0, y1:1, line:{color:"rgba(245,197,66,.5)", width:1, dash:"dot"}}]),
+    shapes:[{type:"line", xref:"x", yref:"paper", x0:todayX, x1:todayX, y0:0, y1:1, line:{color:"rgba(245,197,66,.5)", width:1, dash:"dot"}}],
     annotations:[{x:midFuture, y:0.5, xref:"x", yref:"paper", text:"Matches to come — odds fill in daily", showarrow:false, font:{size:12,color:"#565d76"}}].concat(monthAnns),
   };
   Plotly.react("fc-chart", traces, layout, {displayModeBar:false, responsive:true});
@@ -1074,30 +1044,6 @@ function stadiumIdForVenue(v){
   const s=STADIUMS.find(s=> lv.includes(s.name.toLowerCase()) || (s.wcName&&lv.includes(s.wcName.toLowerCase())) || s.name.toLowerCase().includes(lv));
   return s?s.id:null;
 }
-
-/* ---- curated data: tournament facts ---- */
-const FACTS=[
-  {label:"Teams",value:"48",note:"Expanded from 32; the largest field in World Cup history.",live:false},
-  {label:"Host cities",value:"16",note:"11 in the USA, 3 in Mexico, 2 in Canada.",live:false},
-  {label:"Host nations",value:"3",note:"First World Cup co-hosted by three countries.",live:false},
-  {label:"Stadiums",value:"16",note:"Combined seating capacity of roughly 1.03 million.",live:false},
-  {label:"Format",value:"12 groups of 4",note:"Top two plus 8 best third-placed teams reach a new Round of 32.",live:false},
-  {label:"Tournament length",value:"39 days",note:"June 11 to July 19, 2026.",live:false},
-  {label:"Projected viewership",value:"~6 billion",note:"FIFA's estimate of people engaging across all platforms.",live:false},
-  {label:"Total prize fund",value:"$727 million",note:"Record payout to federations, incl. a $655M performance fund.",live:false},
-  {label:"Winner's share",value:"$50 million",note:"Largest champion's prize in World Cup history.",live:false},
-  {label:"Match ball",value:"Adidas Trionda",note:"Four-panel ball; name means 'three waves' for the three hosts.",live:false},
-  {label:"Mascots",value:"Maple, Zayu & Clutch",note:"A moose (Canada), jaguar (Mexico) and bald eagle (USA).",live:false},
-  {label:"Most titled in field",value:"Brazil (5)",note:"Ahead of Germany (4); reigning champion Argentina has 3.",live:false},
-  {label:"Defending champion",value:"Argentina",note:"Won the 2022 final in Qatar on penalties.",live:false},
-  {label:"Debutants",value:"4",note:"Cape Verde, Curaçao, Jordan and Uzbekistan make their first appearance.",live:false},
-  {label:"Smallest debutant",value:"Curaçao",note:"~156,000 people: smallest nation ever to reach a World Cup.",live:false},
-  {label:"Confederations",value:"6",note:"All six FIFA confederations are represented in the field.",live:false},
-  {label:"Time zones",value:"4",note:"Venues span Pacific, Mountain, Central and Eastern time.",live:false},
-  {label:"Longest venue trip",value:"~4,400 km",note:"Vancouver to Miami, the most distant pair of host cities.",live:false},
-  {label:"Largest venue",value:"MetLife (80,663)",note:"Hosts the final; biggest-capacity stadium of the tournament.",live:false},
-  {label:"Most matches at one venue",value:"9 (Dallas)",note:"AT&T Stadium hosts more games than any other venue.",live:false},
-];
 
 /* ---- shared bits ---- */
 function groupTable(g,tbl,hi){
@@ -1278,18 +1224,8 @@ function renderStadiumDetail(id){
 }
 
 /* ---- nerd-stuff ---- */
-function renderNerd(){
-  let goals=0,played=0; for(const [,,hs,as] of MATCHES){ if(hs!=null){ goals+=hs+as; played++; } }
-  const cards=[
-    {label:"Matches played",value:`${played} / 104`,note:"Updates live as results post.",live:true},
-    {label:"Goals scored",value:String(goals),note:"Across all matches so far.",live:true},
-  ].concat(FACTS);
-  $("#facts-grid").innerHTML=cards.map(f=>`<div class="fact-card"><div class="v">${f.value}</div><div class="k">${f.label}</div>${f.note?`<div class="n">${f.note}</div>`:""}${f.live?'<span class="livetag">● LIVE</span>':""}</div>`).join("");
-  $("#notes").innerHTML=NOTES.map(n=>`<div>${n}</div>`).join("");
-}
-
 /* ---- hash router ---- */
-const NAV_OF={odds:"odds",matches:"matches",groups:"groups",teams:"teams",team:"teams",players:"players",player:"players",stadiums:"stadiums",stadium:"stadiums",nerd:"nerd"};
+const NAV_OF={odds:"odds",matches:"matches",groups:"groups",teams:"teams",team:"teams",players:"players",player:"players",stadiums:"stadiums",stadium:"stadiums"};
 function route(){
   const [view,param]=(location.hash||"").replace(/^#\/?/,"").split("/");
   const v=document.querySelector(`.view[data-view="${view}"]`)?view:"odds";
@@ -1299,7 +1235,7 @@ function route(){
   ({matches:renderMatchList,
     groups:()=>{ renderGroups(); if(param){ const e=document.getElementById("grp-"+param); if(e){ e.scrollIntoView({behavior:"smooth",block:"center"}); e.classList.add("flash"); setTimeout(()=>e.classList.remove("flash"),1700); } } },
     teams:renderTeams,team:()=>renderTeamDetail(param),
-    players:renderPlayers,player:()=>renderPlayerDetail(param),stadiums:renderStadiums,stadium:()=>renderStadiumDetail(param),nerd:renderNerd}[v]||(()=>{}))();
+    players:renderPlayers,player:()=>renderPlayerDetail(param),stadiums:renderStadiums,stadium:()=>renderStadiumDetail(param)}[v]||(()=>{}))();
   if(v==="odds" && typeof Plotly!=="undefined"){ const gd=document.getElementById("fc-chart"); if(gd&&gd.data) Plotly.Plots.resize(gd); }
   window.scrollTo(0,0);
 }
