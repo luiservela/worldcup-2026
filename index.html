@@ -286,6 +286,22 @@
   .seg button:hover{color:var(--txt)}
   .seg button.active{background:linear-gradient(180deg,#fff,#dfe3f3);color:#06070d}
   .match-filters select{font-family:inherit;font-size:12px;color:var(--txt);background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:10px;padding:9px 13px;outline:none;cursor:pointer}
+  .match-filters input{font-family:inherit;font-size:12px;color:var(--txt);background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:10px;padding:9px 13px;outline:none;min-width:210px}
+  .match-filters input:focus{border-color:var(--line-strong)}
+
+  /* ---------- Players page ---------- */
+  .players-page-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(255px,1fr));gap:10px}
+  .pcard{display:flex;align-items:center;gap:12px;background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.012));border:1px solid var(--line);border-radius:13px;padding:10px 14px;text-decoration:none;color:inherit;transition:.16s}
+  .pcard:hover{border-color:var(--line-strong);transform:translateY(-1px);box-shadow:var(--shadow)}
+  .pcard .pflag{font-size:26px;flex:0 0 auto}
+  .pcard .pinfo{flex:1;min-width:0}
+  .pcard .pname{font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .pcard .pname .pno{color:var(--muted-2);font-weight:600;font-size:11px}
+  .pcard .pclub{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+  .pcard .pmeta{display:flex;flex-direction:column;align-items:flex-end;gap:3px;font-size:10px;color:var(--muted-2);flex:0 0 auto}
+  .ppos{font-size:10px;font-weight:800;letter-spacing:.5px;border-radius:5px;padding:2px 6px;color:#06070d}
+  .ppos.GK{background:var(--gold)} .ppos.DF{background:var(--blu)} .ppos.MF{background:var(--grn)} .ppos.FW{background:var(--red);color:#fff}
+  .page{font-variant-numeric:tabular-nums}
   .pct-note{font-size:11px;color:var(--muted-2);margin-left:auto;max-width:300px;line-height:1.4}
   .mrow{display:grid;grid-template-columns:96px 1fr minmax(130px,auto);gap:14px;align-items:center;background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.012));border:1px solid var(--line);border-radius:14px;padding:13px 18px;margin-bottom:9px;transition:.18s}
   .mrow:hover{border-color:var(--line-strong);transform:translateY(-1px);box-shadow:var(--shadow)}
@@ -339,6 +355,7 @@
   .fact-card .livetag{display:inline-block;font-size:9px;font-weight:800;letter-spacing:1px;color:var(--grn);border:1px solid rgba(25,195,125,.3);border-radius:6px;padding:2px 6px;margin-top:9px}
 </style>
 <script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
+<script src="players.js"></script>
 </head>
 <body>
 
@@ -354,6 +371,7 @@
       <a href="#/matches" data-view="matches">Matches</a>
       <a href="#/groups" data-view="groups">Groups</a>
       <a href="#/teams" data-view="teams">Teams</a>
+      <a href="#/players" data-view="players">Players</a>
       <a href="#/stadiums" data-view="stadiums">Stadiums</a>
       <a href="#/nerd" data-view="nerd">Nerd-stuff</a>
     </nav>
@@ -446,6 +464,32 @@
   <section class="view" data-view="team">
     <a class="backlink" href="#/teams">← All teams</a>
     <div id="team-detail"></div>
+  </section>
+
+  <!-- ============ PLAYERS ============ -->
+  <section class="view" data-view="players">
+    <div class="section-head">
+      <h2><span class="bar"></span>Players</h2>
+      <span class="hint" id="players-count"></span>
+    </div>
+    <div class="match-filters">
+      <input id="p-search" placeholder="🔍 Search name or club…" autocomplete="off" />
+      <select id="p-team" aria-label="Filter by team"><option value="">All teams</option></select>
+      <div class="seg" id="p-pos">
+        <button data-p="" class="active">All</button>
+        <button data-p="GK">GK</button>
+        <button data-p="DF">DF</button>
+        <button data-p="MF">MF</button>
+        <button data-p="FW">FW</button>
+      </div>
+      <select id="p-sort" aria-label="Sort">
+        <option value="caps">Most caps</option>
+        <option value="name">Name A–Z</option>
+        <option value="ageDesc">Oldest first</option>
+        <option value="age">Youngest first</option>
+      </select>
+    </div>
+    <div class="players-page-grid" id="players-grid"></div>
   </section>
 
   <!-- ============ STADIUMS ============ -->
@@ -1060,32 +1104,43 @@ function renderTeamDetail(code){
     </div>
     <div class="stat-panel" style="margin-top:16px">
       <h3><span class="ic" style="background:rgba(124,92,255,.15)">👥</span>Squad</h3>
-      <div class="psub">Players via TheSportsDB (free feed — may be partial)</div>
-      <div id="td-players" class="players-grid"><div class="psub">Loading squad…</div></div>
+      <div class="psub">${(PLAYERS[code]||[]).length} players · final World Cup roster</div>
+      ${teamSquadHtml(code)}
     </div>`;
-  loadPlayers(code);
 }
-function playerFallback(name){
-  return `<div class="psub">Full squad data isn't available from the free feed for ${name}. <a href="https://en.wikipedia.org/wiki/${encodeURIComponent(name.replace(/ /g,"_")+"_national_football_team")}" target="_blank" rel="noopener" style="color:var(--gold)">See the squad on Wikipedia →</a></div>`;
+function ageFrom(dob){ if(!dob) return ""; const d=new Date(dob+"T00:00:00Z"),n=new Date(); let a=n.getUTCFullYear()-d.getUTCFullYear(); const m=n.getUTCMonth()-d.getUTCMonth(); if(m<0||(m===0&&n.getUTCDate()<d.getUTCDate()))a--; return a; }
+function playerChip(r){ return `<div class="player"><div><div class="pn">${r.nm}${r.n?` <span style="color:var(--muted-2);font-weight:600">#${r.n}</span>`:""}</div><div class="pp">${r.cl||"—"} · ${ageFrom(r.dob)}y${r.c!=null?` · ${r.c} caps`:""}</div></div></div>`; }
+function teamSquadHtml(code){
+  const sq=PLAYERS[code]||[]; if(!sq.length) return '<div class="psub">Squad not available.</div>';
+  return [["GK","Goalkeepers"],["DF","Defenders"],["MF","Midfielders"],["FW","Forwards"]].map(([k,lbl])=>{
+    const ps=sq.filter(r=>r.p===k); if(!ps.length) return "";
+    return `<div style="margin-bottom:12px"><div class="psub" style="margin:2px 0 6px;color:var(--muted)">${lbl} · ${ps.length}</div><div class="players-grid">${ps.map(playerChip).join("")}</div></div>`;
+  }).join("");
 }
-async function loadPlayers(code){
-  const box=$("#td-players"); if(!box) return; const name=tname(code);
-  try{
-    const r=await fetch(`https://www.thesportsdb.com/api/v1/json/3/searchteams.php?t=${encodeURIComponent(name)}`);
-    const teams=(await r.json()).teams||[];
-    // Prefer the senior national side: exact name + a non-youth "World Cup" league.
-    const team = teams.find(t=>t.strTeam&&t.strTeam.toLowerCase()===name.toLowerCase() && /world cup/i.test(t.strLeague||"") && !/u-?\d/i.test(t.strLeague||""))
-               || teams.find(t=>t.strTeam&&t.strTeam.toLowerCase()===name.toLowerCase())
-               || teams[0];
-    if(!team){ box.innerHTML=playerFallback(name); return; }
-    const r2=await fetch(`https://www.thesportsdb.com/api/v1/json/3/lookup_all_players.php?id=${team.idTeam}`);
-    const players=(await r2.json()).player||[];
-    if(!players.length){ box.innerHTML=playerFallback(name); return; }
-    box.innerHTML=players.slice(0,30).map(p=>{
-      const img=p.strCutout||p.strThumb||"";
-      return `<div class="player"><img src="${img}" alt="" loading="lazy" onerror="this.style.visibility='hidden'"/><div><div class="pn">${p.strPlayer}</div><div class="pp">${p.strPosition||""}</div></div></div>`;
-    }).join("");
-  }catch(e){ box.innerHTML=playerFallback(name); }
+
+/* ---- players page (from baked PLAYERS) ---- */
+let pFilter={q:"",team:"",pos:"",sort:"caps"};
+function allPlayers(){ const out=[]; for(const code in PLAYERS) for(const r of PLAYERS[code]) out.push(Object.assign({code},r)); return out; }
+function renderPlayers(){
+  let list=allPlayers();
+  if(pFilter.team) list=list.filter(r=>r.code===pFilter.team);
+  if(pFilter.pos)  list=list.filter(r=>r.p===pFilter.pos);
+  if(pFilter.q){ const q=pFilter.q.toLowerCase(); list=list.filter(r=>r.nm.toLowerCase().includes(q)||(r.cl||"").toLowerCase().includes(q)); }
+  const s=pFilter.sort;
+  list.sort((a,b)=> s==="name"? a.nm.localeCompare(b.nm)
+    : s==="age"?    (ageFrom(a.dob)-ageFrom(b.dob))||a.nm.localeCompare(b.nm)
+    : s==="ageDesc"?(ageFrom(b.dob)-ageFrom(a.dob))||a.nm.localeCompare(b.nm)
+    :               (b.c||0)-(a.c||0)||a.nm.localeCompare(b.nm));
+  $("#players-count").textContent=`${list.length.toLocaleString()} of 1,248 players`;
+  $("#players-grid").innerHTML=list.map(r=>`
+    <a class="pcard" href="#/team/${r.code}" title="${tname(r.code)}">
+      <span class="pflag">${flag(r.code)}</span>
+      <div class="pinfo">
+        <div class="pname">${r.nm}${r.n?` <span class="pno">#${r.n}</span>`:""}</div>
+        <div class="pclub">${r.cl||"—"}</div>
+      </div>
+      <div class="pmeta"><span class="ppos ${r.p}">${r.p||"?"}</span><span class="page">${ageFrom(r.dob)||"–"}y</span>${r.c!=null?`<span>${r.c} caps</span>`:""}</div>
+    </a>`).join("")||`<div class="empty-state"><div class="big">🔍</div><b>No players</b><small>Try a different filter.</small></div>`;
 }
 
 /* ---- stadiums ---- */
@@ -1139,14 +1194,14 @@ function renderNerd(){
 }
 
 /* ---- hash router ---- */
-const NAV_OF={odds:"odds",matches:"matches",groups:"groups",teams:"teams",team:"teams",stadiums:"stadiums",stadium:"stadiums",nerd:"nerd"};
+const NAV_OF={odds:"odds",matches:"matches",groups:"groups",teams:"teams",team:"teams",players:"players",stadiums:"stadiums",stadium:"stadiums",nerd:"nerd"};
 function route(){
   const [view,param]=(location.hash||"").replace(/^#\/?/,"").split("/");
   const v=document.querySelector(`.view[data-view="${view}"]`)?view:"odds";
   document.querySelectorAll(".view").forEach(s=>s.classList.toggle("active",s.dataset.view===v));
   document.querySelectorAll("#nav a").forEach(a=>a.classList.toggle("active",a.dataset.view===NAV_OF[v]));
   ({matches:renderMatchList,groups:renderGroups,teams:renderTeams,team:()=>renderTeamDetail(param),
-    stadiums:renderStadiums,stadium:()=>renderStadiumDetail(param),nerd:renderNerd}[v]||(()=>{}))();
+    players:renderPlayers,stadiums:renderStadiums,stadium:()=>renderStadiumDetail(param),nerd:renderNerd}[v]||(()=>{}))();
   if(v==="odds" && typeof Plotly!=="undefined"){ const gd=document.getElementById("fc-chart"); if(gd&&gd.data) Plotly.Plots.resize(gd); }
   window.scrollTo(0,0);
 }
@@ -1161,6 +1216,19 @@ if(_tf){
 document.querySelectorAll("#time-filter button").forEach(b=>b.addEventListener("click",()=>{
   document.querySelectorAll("#time-filter button").forEach(x=>x.classList.remove("active"));
   b.classList.add("active"); mFilter.time=b.dataset.f; renderMatchList();
+}));
+
+// Players page controls
+const _pt=$("#p-team");
+if(_pt){
+  _pt.innerHTML='<option value="">All teams</option>'+ALL_CODES.slice().sort((a,b)=>tname(a).localeCompare(tname(b))).map(c=>`<option value="${c}">${flag(c)} ${tname(c)}</option>`).join("");
+  _pt.addEventListener("change",e=>{ pFilter.team=e.target.value; renderPlayers(); });
+}
+$("#p-search") && $("#p-search").addEventListener("input",e=>{ pFilter.q=e.target.value; renderPlayers(); });
+$("#p-sort")   && $("#p-sort").addEventListener("change",e=>{ pFilter.sort=e.target.value; renderPlayers(); });
+document.querySelectorAll("#p-pos button").forEach(b=>b.addEventListener("click",()=>{
+  document.querySelectorAll("#p-pos button").forEach(x=>x.classList.remove("active"));
+  b.classList.add("active"); pFilter.pos=b.dataset.p; renderPlayers();
 }));
 
 route();
