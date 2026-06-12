@@ -466,7 +466,7 @@
     </div>
     <input id="fc-search" placeholder="🔍 Find a team…" list="fc-teamlist" autocomplete="off" />
     <datalist id="fc-teamlist"></datalist>
-    <button id="fc-colormode" class="fc-colorbtn" title="Bar colours: Vibrant → Team → Complement">🎨 Vibrant</button>
+    <button id="fc-colormode" class="fc-colorbtn" title="Bar colours: Vibrant → Team → Complementary → Tartan">🎨 Tartan</button>
   </div>
   <div class="fc-chart-wrap">
     <div id="fc-chart" class="fc-chart"></div>
@@ -828,8 +828,8 @@ const COLOR={};
   rank.forEach((c,i)=>{ COLOR[c]= i<FEATURE_COLORS.length ? FEATURE_COLORS[i] : `hsl(222 13% ${40+((i-FEATURE_COLORS.length)%8)*4}%)`; });
 })();
 
-/* ---- bar-colour modes: vibrant (default) · team (crest's dominant colour) · complement ---- */
-let FC_COLORMODE="vibrant";
+/* ---- bar-colour modes: vibrant · team (crest's dominant colour) · complement · tartan (default) ---- */
+let FC_COLORMODE="tartan";
 const CREST_COLOR={};                 // code -> {h,s,l} extracted from the crest
 let crestColorsReady=false, crestColorsLoading=false;
 function rgb2hsl(r,g,b){ r/=255;g/=255;b/=255; const mx=Math.max(r,g,b),mn=Math.min(r,g,b),d=mx-mn; let h=0; const l=(mx+mn)/2, s=d===0?0:d/(1-Math.abs(2*l-1));
@@ -1462,7 +1462,9 @@ if(_cm) _cm.addEventListener("click",()=>{
   if(FC_COLORMODE!=="vibrant" && !crestColorsReady) extractCrestColors(()=>renderForecast());
   renderForecast();
 });
-extractCrestColors();   // pre-extract crest colours in the background so toggling is instant
+updateColorBtn();
+// Extract crest colours; re-render once ready (the default Tartan mode needs them).
+extractCrestColors(()=>{ if(FC_COLORMODE!=="vibrant") renderForecast(); });
 
 route();
 loadForecast();
