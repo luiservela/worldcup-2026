@@ -2,8 +2,12 @@
    Strategy:
    • same-origin (index.html, data .js, crests): NETWORK-FIRST so fresh deploys
      and the daily data commits always win; cache is the offline fallback.
+     Cache keys are normalized to the pathname so ?nocache=/?fresh= probes
+     don't pile up variants.
    • cross-origin (Plotly CDN, Wikimedia photos): CACHE-FIRST — immutable-ish,
      and the big Plotly bundle is the main repeat-visit cost.
+   Only successful (or opaque cross-origin) responses are cached — a transient
+   404/500 must never become the permanent offline copy.
    Bump VER on breaking changes to drop old caches. */
 const VER = "wc26-v1";
 const CORE = ["./", "index.html", "schedule.js", "players.js", "images.js",
@@ -22,17 +26,20 @@ self.addEventListener("activate", e => {
 self.addEventListener("fetch", e => {
   const req = e.request;
   if (req.method !== "GET") return;
-  const sameOrigin = new URL(req.url).origin === location.origin;
-  if (sameOrigin) {
+  const url = new URL(req.url);
+  if (url.origin === location.origin) {
+    const key = url.origin + url.pathname;          // strip query → one cache entry per file
     e.respondWith(
       fetch(req).then(r => {
-        const cp = r.clone(); caches.open(VER).then(c => c.put(req, cp)); return r;
-      }).catch(() => caches.match(req, { ignoreSearch: true }))
+        if (r.ok) { const cp = r.clone(); caches.open(VER).then(c => c.put(key, cp)); }
+        return r;
+      }).catch(() => caches.match(key))
     );
   } else {
     e.respondWith(
       caches.match(req).then(hit => hit || fetch(req).then(r => {
-        const cp = r.clone(); caches.open(VER).then(c => c.put(req, cp)); return r;
+        if (r.ok || r.type === "opaque") { const cp = r.clone(); caches.open(VER).then(c => c.put(req, cp)); }
+        return r;
       }))
     );
   }

@@ -793,8 +793,9 @@ const LIVE_CFG = {
   base:"https://www.thesportsdb.com/api/v1/json/3",
   worldCupLeagueId:"4429",   // FIFA World Cup
   season:"2026",
-  // yesterday / today / tomorrow (UTC) — follows the tournament instead of a fixed list
-  dates:(()=>{ const out=[], d=new Date(Date.now()-86400000); for(let i=0;i<3;i++){ out.push(d.toISOString().slice(0,10)); d.setUTCDate(d.getUTCDate()+1); } return out; })(),
+  // yesterday / today / tomorrow (UTC), computed per call — follows the
+  // tournament instead of a fixed list, and stays right in long-lived tabs.
+  dates(){ const out=[], d=new Date(Date.now()-86400000); for(let i=0;i<3;i++){ out.push(d.toISOString().slice(0,10)); d.setUTCDate(d.getUTCDate()+1); } return out; },
 };
 
 // Map live-feed team names -> our internal codes
@@ -821,10 +822,12 @@ function codeOf(name){
 }
 function setStatus(msg,cls){ const e=$("#update-status"); e.textContent=msg; e.className="update-status"+(cls?" "+cls:""); }
 
-async function fetchEvents(){
+async function fetchEvents(light){
   const c=LIVE_CFG;
-  const urls=[`${c.base}/eventsseason.php?id=${c.worldCupLeagueId}&s=${c.season}`];
-  for(const d of c.dates) urls.push(`${c.base}/eventsday.php?d=${d}&l=FIFA%20World%20Cup`);
+  // light mode (auto-sync polling): live scores are by definition today's —
+  // one request instead of four spares the rate-limited free key.
+  const urls= light ? [] : [`${c.base}/eventsseason.php?id=${c.worldCupLeagueId}&s=${c.season}`];
+  for(const d of (light?[new Date().toISOString().slice(0,10)]:c.dates())) urls.push(`${c.base}/eventsday.php?d=${d}&l=FIFA%20World%20Cup`);
   const events=[];
   for(const u of urls){
     try{
@@ -854,18 +857,19 @@ function mergeEvents(events){
   return {updated,live};
 }
 
-async function updateLive(){
+async function updateLive(auto){
+  auto=auto===true;   // onclick may pass an event object
   const btn=$("#live-btn");
   btn.disabled=true; btn.classList.add("loading");
   setStatus("Fetching live scores from the feed…","work");
   try{
-    const events=await fetchEvents();
+    const events=await fetchEvents(auto);
     if(!events.length){
       setStatus("Reached the source but it returned no World Cup events yet. Try again once games are under way.","err");
     }else{
       const {updated,live}=mergeEvents(events);
-      renderMatchList(); renderGroups();
       if(updated){
+        renderMatchList(); renderGroups();   // re-render only on real change
         setStatus(`✓ Synced ${updated} match${updated>1?"es":""}${live?` · ${live} live now`:""} · standings & stats refreshed`,"ok");
       }else{
         setStatus(`Connected — ${events.length} events found, but no results are posted for these fixtures yet.`,"err");
@@ -1360,13 +1364,14 @@ const utcOf  =(h,a)=>(FIX[h+"-"+a]||[])[0]||null;
 const venueOf=(h,a)=>(FIX[h+"-"+a]||[])[1]||null;
 
 // A match is LIVE when the score feed says so, or — between data refreshes —
-// when we're inside its play window (kickoff → +130 min) and it isn't final.
-const LIVE_WINDOW_MS=130*60000;
+// when we're inside its play window and it isn't final. Knockout games get a
+// longer window: extra time + penalties can run ~170 min past kickoff.
+const LIVE_WINDOW_MS=130*60000, LIVE_WINDOW_KO_MS=200*60000;
 function isLiveMatch(o){
   if(o.st==="live") return true;
   if(o.st==="fin"||!o.utc) return false;
   const t=Date.parse(o.utc), n=Date.now();
-  return n>=t && (n-t)<LIVE_WINDOW_MS;
+  return n>=t && (n-t)<((o.ko||o.round)?LIVE_WINDOW_KO_MS:LIVE_WINDOW_MS);
 }
 
 // Match times render in the VIEWER's timezone (the audience is worldwide);
@@ -1708,8 +1713,8 @@ function anyLiveWindow(){
   }catch(e){ return false; }
 }
 if(anyLiveWindow()){
-  updateLive();
-  setInterval(()=>{ if(anyLiveWindow()) updateLive(); }, 120000);
+  updateLive(true);
+  setInterval(()=>{ if(anyLiveWindow()) updateLive(true); }, 120000);
 }
 </script>
 </body>
