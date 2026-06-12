@@ -865,13 +865,13 @@ function barMarker(c){
   if(!cols.length) return {color:COLOR[c], line:sep};
   if(FC_COLORMODE==="team") return {color:hsl(cols[0]), line:sep};
   if(FC_COLORMODE==="comp") return {color:hsl({...cols[0],h:(cols[0].h+180)%360}), line:sep};
-  if(FC_COLORMODE==="pattern"){
+  if(FC_COLORMODE==="tartan"){
     const c1=cols[0], c2=cols[1]||{...cols[0], l:Math.min(.72,cols[0].l+0.2)};   // 2nd colour, or a lighter shade
-    return {color:hsl(c1), line:sep, pattern:{shape:"/", fgcolor:hsl(c2), bgcolor:hsl(c1), size:9, solidity:0.5}};
+    return {color:hsl(c1), line:sep, pattern:{shape:"x", fgcolor:hsl(c2), bgcolor:hsl(c1), size:10, solidity:0.5}};
   }
   return {color:COLOR[c], line:sep};
 }
-function updateColorBtn(){ const b=$("#fc-colormode"); if(b) b.textContent="🎨 "+({vibrant:"Vibrant",team:"Team",comp:"Complement",pattern:"Pattern"}[FC_COLORMODE]); }
+function updateColorBtn(){ const b=$("#fc-colormode"); if(b) b.textContent="🎨 "+({vibrant:"Vibrant",team:"Team",comp:"Complementary",tartan:"Tartan"}[FC_COLORMODE]); }
 
 let fcTimeline=null;                 // {dates, series:{code:[...]}, live, single}
 let fcVisible=new Set();             // codes currently shown
@@ -1440,7 +1440,7 @@ let _fcRz; window.addEventListener("resize",()=>{ clearTimeout(_fcRz); _fcRz=set
 // Bar-colour mode toggle: Vibrant → Team → Complement.
 const _cm=$("#fc-colormode");
 if(_cm) _cm.addEventListener("click",()=>{
-  const m=["vibrant","team","comp","pattern"]; FC_COLORMODE=m[(m.indexOf(FC_COLORMODE)+1)%m.length]; updateColorBtn();
+  const m=["vibrant","team","comp","tartan"]; FC_COLORMODE=m[(m.indexOf(FC_COLORMODE)+1)%m.length]; updateColorBtn();
   if(FC_COLORMODE!=="vibrant" && !crestColorsReady) extractCrestColors(()=>renderForecast());
   renderForecast();
 });
