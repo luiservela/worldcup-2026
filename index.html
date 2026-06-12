@@ -834,24 +834,21 @@ const CREST_COLOR={};                 // code -> {h,s,l} extracted from the cres
 let crestColorsReady=false, crestColorsLoading=false;
 function rgb2hsl(r,g,b){ r/=255;g/=255;b/=255; const mx=Math.max(r,g,b),mn=Math.min(r,g,b),d=mx-mn; let h=0; const l=(mx+mn)/2, s=d===0?0:d/(1-Math.abs(2*l-1));
   if(d){ if(mx===r)h=((g-b)/d)%6; else if(mx===g)h=(b-r)/d+2; else h=(r-g)/d+4; h*=60; if(h<0)h+=360; } return [h,s,l]; }
-// Up to TWO distinct vivid colours from the crest (so two-tone patterns can use both).
+// The TWO most frequent colours in the crest (white/black/grey INCLUDED), by pixel
+// count, after coarse RGB quantisation. Returns [] | [c1] | [c1,c2] as {h,s,l}.
 function dominantColors(data){
   const buckets={};
   for(let i=0;i<data.length;i+=4){
-    if(data[i+3]<128) continue;
-    const [h,s,l]=rgb2hsl(data[i],data[i+1],data[i+2]);
-    if(l<0.12||l>0.9||s<0.22) continue;          // skip transparent / near-white / near-black / grey
-    const b=(Math.round(h/20)*20)%360, o=buckets[b]||(buckets[b]={w:0,s:0,l:0,n:0});
-    o.w+=s; o.s+=s; o.l+=l; o.n++;
+    if(data[i+3]<128) continue;                                   // skip transparent only
+    const r=Math.min(255,Math.round(data[i]/64)*64), g=Math.min(255,Math.round(data[i+1]/64)*64), b=Math.min(255,Math.round(data[i+2]/64)*64);
+    const key=r+","+g+","+b, o=buckets[key]||(buckets[key]={r:0,g:0,b:0,n:0});
+    o.r+=data[i]; o.g+=data[i+1]; o.b+=data[i+2]; o.n++;
   }
-  const arr=Object.keys(buckets).map(b=>({h:+b, w:buckets[b].w, s:buckets[b].s/buckets[b].n, l:buckets[b].l/buckets[b].n})).sort((a,b)=>b.w-a.w);
-  const out=[];
-  for(const cand of arr){
-    if(out.length>=2) break;
-    if(out.some(o=>Math.min(Math.abs(o.h-cand.h),360-Math.abs(o.h-cand.h))<40)) continue;   // require a distinct hue
-    out.push({ h:cand.h, s:Math.min(.85,Math.max(.5,cand.s)), l:Math.min(.62,Math.max(.46,cand.l)) });
-  }
-  return out;   // [] | [c1] | [c1,c2]
+  const arr=Object.values(buckets).map(o=>({r:o.r/o.n,g:o.g/o.n,b:o.b/o.n,n:o.n})).sort((a,b)=>b.n-a.n);
+  if(!arr.length) return [];
+  const out=[arr[0]];
+  for(let i=1;i<arr.length;i++){ const c=arr[i]; if(Math.abs(c.r-out[0].r)+Math.abs(c.g-out[0].g)+Math.abs(c.b-out[0].b)>90){ out.push(c); break; } }
+  return out.map(c=>{ const [h,s,l]=rgb2hsl(c.r,c.g,c.b); return {h,s,l}; });
 }
 const hsl=c=>`hsl(${c.h.toFixed(0)} ${Math.round(c.s*100)}% ${Math.round(c.l*100)}%)`;
 const _crestCbs=[];
@@ -867,17 +864,23 @@ function extractCrestColors(cb){
     img.onerror=finish; img.src=TEAM_IMG[c]; });
 }
 // Full Plotly marker per team, per colour mode.
+// Punch chromatic colours; push white/black to a usable light/dark so the weave shows.
+const vivid=cc=> cc.s>0.15
+  ? {h:cc.h, s:Math.min(1,cc.s+0.3), l:Math.min(.62,Math.max(.42,cc.l))}
+  : {h:cc.h, s:cc.s, l: cc.l>0.5?0.9:0.22};
 function barMarker(c){
   const sep = FC_COLORMODE==="vibrant" ? {width:0} : {width:0.7,color:"rgba(6,7,13,.5)"};
   if(FC_COLORMODE==="vibrant") return {color:COLOR[c], line:sep};
   const cols=CREST_COLOR[c]||[];
   if(!cols.length) return {color:COLOR[c], line:sep};
-  if(FC_COLORMODE==="team") return {color:hsl(cols[0]), line:sep};
-  if(FC_COLORMODE==="comp") return {color:hsl({...cols[0],h:(cols[0].h+180)%360}), line:sep};
+  const chrom=cols.slice().sort((a,b)=>b.s-a.s)[0];                 // most colourful of the two
+  if(FC_COLORMODE==="team") return chrom.s<0.15?{color:COLOR[c],line:sep}:{color:hsl(vivid(chrom)), line:sep};
+  if(FC_COLORMODE==="comp"){ if(chrom.s<0.15) return {color:COLOR[c],line:sep}; const v=vivid(chrom); return {color:hsl({...v,h:(v.h+180)%360}), line:sep}; }
   if(FC_COLORMODE==="tartan"){
-    const c1=cols[0], base2=cols[1]||{...cols[0], h:(cols[0].h+150)%360};        // 2nd colour, or a shifted hue
-    const c2={h:base2.h, s:Math.min(1, base2.s+0.35), l:0.56};                    // punch the weave colour to make it dazzle
-    return {color:hsl(c1), line:sep, pattern:{shape:"x", fgcolor:hsl(c2), bgcolor:hsl(c1), size:10, solidity:0.55}};
+    const ordered=cols.slice().sort((a,b)=>b.s-a.s);               // more-saturated colour as the base
+    const base=vivid(ordered[0]);
+    const weave=vivid(ordered[1]||{h:(ordered[0].h+150)%360, s:0.75, l:0.55});
+    return {color:hsl(base), line:sep, pattern:{shape:"x", fgcolor:hsl(weave), bgcolor:hsl(base), size:10, solidity:0.55}};
   }
   return {color:COLOR[c], line:sep};
 }
