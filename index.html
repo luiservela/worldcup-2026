@@ -423,6 +423,16 @@
   .mrow .tline .scr{margin-left:auto;font-size:19px;font-weight:900;font-variant-numeric:tabular-nums}
   /* future-match title odds — same slot as the score, gold + % (vs white goals) */
   .mrow .tline .modd{margin-left:auto;font-size:16px;font-weight:800;color:var(--gold);font-variant-numeric:tabular-nums}
+  /* live matches: green "aura of life" + gold score shown alongside the gold odds */
+  .mrow.live{border-color:rgba(25,195,125,.5);animation:liveaura 2.4s ease-in-out infinite}
+  @keyframes liveaura{
+    0%,100%{box-shadow:0 0 0 1px rgba(25,195,125,.18), 0 0 14px -4px rgba(25,195,125,.35)}
+    50%{box-shadow:0 0 0 1px rgba(25,195,125,.45), 0 0 28px -2px rgba(25,195,125,.6)}
+  }
+  .mrow .tline .scr.live-scr{color:var(--gold)}
+  .mrow .tline .scr+.modd{margin-left:0}   /* score already pushed the pair right */
+  .livebadge{display:inline-flex;align-items:center;gap:5px;color:var(--grn);font-weight:800;letter-spacing:1.2px;font-size:10px}
+  .livebadge i{width:7px;height:7px;border-radius:50%;background:var(--grn);box-shadow:0 0 0 0 rgba(25,195,125,.7);animation:pulse 1.8s infinite}
   .mrow .meta{text-align:right;font-size:11px;color:var(--muted-2)}
   .mrow .meta .stage{font-weight:700;color:var(--muted);display:block}
   .mrow .meta .venue{display:block;margin-top:3px}
@@ -698,13 +708,14 @@ function renderMatchList(){
   if(typeof KNOCKOUT!=="undefined") for(const k of KNOCKOUT) rows.push({utc:k.utc,home:k.home,away:k.away,hc:k.hc,ac:k.ac,hs:k.hs,as:k.as,stage:k.round,venue:k.venue,vid:k.vid,ko:true});
   let list=rows;
   if(mFilter.team) list=list.filter(r=>r.hc===mFilter.team||r.ac===mFilter.team);
-  if(mFilter.time==="past")   list=list.filter(r=>r.hs!=null);
-  if(mFilter.time==="future") list=list.filter(r=>r.hs==null);
+  if(mFilter.time==="past")   list=list.filter(r=>r.hs!=null && !isLiveMatch(r));   // Played = finished
+  if(mFilter.time==="future") list=list.filter(r=>r.hs==null || isLiveMatch(r));    // Upcoming includes in-play
   if(mFilter.time==="today"){ const td=localDay(new Date().toISOString()); list=list.filter(r=>r.utc&&localDay(r.utc)===td); }
   list.sort((a,b)=>(a.utc||"9999").localeCompare(b.utc||"9999"));
   let html="", lastDay="";
   for(const r of list){
-    const played=r.hs!=null;
+    const live=isLiveMatch(r);
+    const played=r.hs!=null && !live;   // finished; live shows score AND probability
     const dayLbl = r.utc ? fmtZone(r.utc,LOCAL_TZ,{weekday:"long",day:"numeric",month:"short"}) : "TBD";
     const timeLbl= r.utc ? fmtZone(r.utc,LOCAL_TZ,{hour:"2-digit",minute:"2-digit"}) : "";
     if(dayLbl!==lastDay){ html+=`<div class="daydiv">${dayLbl}</div>`; lastDay=dayLbl; }
@@ -717,14 +728,16 @@ function renderMatchList(){
     const koLabel=(lbl)=>lbl.replace(/Group ([A-L])/g,(m,g)=>groupLink(g,m));
     const labelTline=(label)=>`<div class="tline"><span class="flag" style="opacity:.5">🏳️</span><span class="nm" style="color:var(--muted)">${koLabel(label)}</span></div>`;
     const codedTline=(c,scr,pct)=>`<a class="tline" href="#/team/${c}"><span class="flag">${flag(c)}</span><span class="nm">${tname(c)}</span>`+
-          (played ? `<span class="scr">${scr}</span>` : (pct!=null ? `<span class="modd" title="${oTip}">${pct}%</span>` : ""))+`</a>`;
+          (live   ? (scr!=null?`<span class="scr live-scr">${scr}</span>`:"")+(pct!=null?`<span class="modd" title="${oTip}">${pct}%</span>`:"")
+        : played  ? `<span class="scr">${scr}</span>`
+        : (pct!=null ? `<span class="modd" title="${oTip}">${pct}%</span>` : ""))+`</a>`;
     const teamsHtml = coded ? codedTline(r.hc,r.hs,hPct)+codedTline(r.ac,r.as,aPct) : labelTline(r.home)+labelTline(r.away);
     const gm=/^Group ([A-L])$/.exec(r.stage);
     const stageHtml = gm ? groupLink(gm[1],r.stage) : r.stage;
-    html+=`<div class="mrow">
+    html+=`<div class="mrow${live?" live":""}">
       <div class="when"><b>${timeLbl}</b><small>${r.utc?TZ_BADGE:""}</small></div>
       <div class="teams">${teamsHtml}</div>
-      <div class="meta"><span class="stage">${stageHtml}${r.st==="live"?" · ● LIVE":""}</span><span class="venue">📍 ${stadiumLink(sid,r.venue)}</span></div>
+      <div class="meta"><span class="stage">${stageHtml}${live?` · <span class="livebadge"><i></i>LIVE</span>`:""}</span><span class="venue">📍 ${stadiumLink(sid,r.venue)}</span></div>
     </div>`;
   }
   $("#match-list").innerHTML=html||`<div class="empty-state"><div class="big">🔍</div><b>No matches</b><small>Try a different filter.</small></div>`;
@@ -780,7 +793,8 @@ const LIVE_CFG = {
   base:"https://www.thesportsdb.com/api/v1/json/3",
   worldCupLeagueId:"4429",   // FIFA World Cup
   season:"2026",
-  dates:["2026-06-11","2026-06-12","2026-06-13","2026-06-14","2026-06-15"],
+  // yesterday / today / tomorrow (UTC) — follows the tournament instead of a fixed list
+  dates:(()=>{ const out=[], d=new Date(Date.now()-86400000); for(let i=0;i<3;i++){ out.push(d.toISOString().slice(0,10)); d.setUTCDate(d.getUTCDate()+1); } return out; })(),
 };
 
 // Map live-feed team names -> our internal codes
@@ -1345,6 +1359,16 @@ function titleOdds(h,a,P){ // floored so no team is ever exactly 0%
 const utcOf  =(h,a)=>(FIX[h+"-"+a]||[])[0]||null;
 const venueOf=(h,a)=>(FIX[h+"-"+a]||[])[1]||null;
 
+// A match is LIVE when the score feed says so, or — between data refreshes —
+// when we're inside its play window (kickoff → +130 min) and it isn't final.
+const LIVE_WINDOW_MS=130*60000;
+function isLiveMatch(o){
+  if(o.st==="live") return true;
+  if(o.st==="fin"||!o.utc) return false;
+  const t=Date.parse(o.utc), n=Date.now();
+  return n>=t && (n-t)<LIVE_WINDOW_MS;
+}
+
 // Match times render in the VIEWER's timezone (the audience is worldwide);
 // stadium pages still use the stadium's own tz. TZ_BADGE is a short label
 // like "CEST" / "GMT-6" for the UI.
@@ -1400,17 +1424,18 @@ function groupTable(g,tbl,hi){
 }
 // Accepts a normalized object {hc,ac,hs,as,utc,round}. Works for group and resolved knockout.
 function matchMiniRow(o){
-  const {hc,ac,hs,as,utc}=o, played=hs!=null;
+  const {hc,ac,hs,as,utc}=o, live=isLiveMatch(o), played=hs!=null;
   const when=utc?fmtZone(utc,LOCAL_TZ,{weekday:"short",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}):"TBD";
-  return `<div style="display:flex;align-items:center;gap:9px;padding:8px 0;border-top:1px solid var(--line);font-size:13px">
-    <span style="color:var(--muted-2);width:150px;flex:0 0 auto;font-size:11px">${when}${o.round?` · ${o.round}`:""}</span>
+  const mid=played?`${hs}–${as}`:"v";
+  return `<div style="display:flex;align-items:center;gap:9px;padding:8px 0;border-top:1px solid var(--line);font-size:13px${live?";background:rgba(25,195,125,.06);border-radius:8px;padding-left:6px;padding-right:6px":""}">
+    <span style="color:var(--muted-2);width:150px;flex:0 0 auto;font-size:11px">${when}${o.round?` · ${o.round}`:""}${live?` <span class="livebadge"><i></i>LIVE</span>`:""}</span>
     ${flagLink(hc)}<a class="lnk" href="#/team/${hc}" style="font-weight:600;flex:1">${tname(hc)}</a>
-    <span style="font-weight:800;font-variant-numeric:tabular-nums;color:${played?'var(--txt)':'var(--muted-2)'}">${played?`${hs}–${as}`:"v"}</span>
+    <span style="font-weight:800;font-variant-numeric:tabular-nums;color:${live?'var(--gold)':played?'var(--txt)':'var(--muted-2)'}">${mid}</span>
     <a class="lnk" href="#/team/${ac}" style="font-weight:600;flex:1;text-align:right">${tname(ac)}</a>${flagLink(ac)}</div>`;
 }
 // A team's matches as normalized objects: all group games + any resolved knockout ties.
 function teamFixtures(code){
-  const g=MATCHES.filter(m=>m[0]===code||m[1]===code).map(m=>({hc:m[0],ac:m[1],hs:m[2],as:m[3],utc:utcOf(m[0],m[1])}));
+  const g=MATCHES.filter(m=>m[0]===code||m[1]===code).map(m=>({hc:m[0],ac:m[1],hs:m[2],as:m[3],st:m[4],utc:utcOf(m[0],m[1])}));
   const k=(typeof KNOCKOUT!=="undefined"?KNOCKOUT:[]).filter(x=>x.hc===code||x.ac===code).map(x=>({hc:x.hc,ac:x.ac,hs:x.hs,as:x.as,utc:x.utc,round:x.round}));
   return [...g,...k].sort((a,b)=>(a.utc||"z").localeCompare(b.utc||"z"));
 }
@@ -1554,7 +1579,7 @@ function renderStadiumDetail(id){
   const local=fmtZone(new Date().toISOString(),s.tz,{weekday:"short",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"});
   const maps=`https://www.google.com/maps/dir/?api=1&destination=${s.lat},${s.lng}`;
   const here=[
-    ...MATCHES.filter(m=>stadiumIdForVenue(venueOf(m[0],m[1]))===id).map(m=>({hc:m[0],ac:m[1],hs:m[2],as:m[3],utc:utcOf(m[0],m[1])})),
+    ...MATCHES.filter(m=>stadiumIdForVenue(venueOf(m[0],m[1]))===id).map(m=>({hc:m[0],ac:m[1],hs:m[2],as:m[3],st:m[4],utc:utcOf(m[0],m[1])})),
     ...(typeof KNOCKOUT!=="undefined"?KNOCKOUT:[]).filter(k=>k.vid===id && k.hc && k.ac).map(k=>({hc:k.hc,ac:k.ac,hs:k.hs,as:k.as,utc:k.utc,round:k.round})),
   ].sort((a,b)=>(a.utc||"z").localeCompare(b.utc||"z"));
   const photo=(typeof STADIUM_IMG!=="undefined"&&STADIUM_IMG[id])||"";
@@ -1672,6 +1697,20 @@ if("serviceWorker" in navigator){ try{ navigator.serviceWorker.register("sw.js")
 renderMovers();   // before route(): the odds flex layout sizes around the strip
 route();
 loadForecast();
+
+// While any match is inside its play window, sync live scores automatically
+// (on arrival + every 2 min) so the green aura carries a real score — the
+// "Update Scores Live" button still works manually at any time.
+function anyLiveWindow(){
+  try{
+    return MATCHES.some(m=>isLiveMatch({st:m[4],utc:utcOf(m[0],m[1])}))
+        || (typeof KNOCKOUT!=="undefined" && KNOCKOUT.some(k=>k.hc&&k.ac&&isLiveMatch(k)));
+  }catch(e){ return false; }
+}
+if(anyLiveWindow()){
+  updateLive();
+  setInterval(()=>{ if(anyLiveWindow()) updateLive(); }, 120000);
+}
 </script>
 </body>
 </html>
