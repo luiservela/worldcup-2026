@@ -586,7 +586,7 @@ function renderMatchList(){
   // unify the 72 group games and the 32 knockout games into one chronological list
   const rows=[];
   for(const m of MATCHES) rows.push({utc:utcOf(m[0],m[1]),hc:m[0],ac:m[1],hs:m[2],as:m[3],st:m[4],stage:m[5],venue:m[7],ko:false});
-  if(typeof KNOCKOUT!=="undefined") for(const k of KNOCKOUT) rows.push({utc:k.utc,home:k.home,away:k.away,hs:null,as:null,stage:k.round,venue:k.venue,vid:k.vid,ko:true});
+  if(typeof KNOCKOUT!=="undefined") for(const k of KNOCKOUT) rows.push({utc:k.utc,home:k.home,away:k.away,hc:k.hc,ac:k.ac,hs:k.hs,as:k.as,stage:k.round,venue:k.venue,vid:k.vid,ko:true});
   let list=rows;
   if(mFilter.team) list=list.filter(r=>r.hc===mFilter.team||r.ac===mFilter.team);
   if(mFilter.time==="past")   list=list.filter(r=>r.hs!=null);
@@ -599,14 +599,14 @@ function renderMatchList(){
     const timeLbl= r.utc ? fmtZone(r.utc,LUX,{hour:"2-digit",minute:"2-digit"}) : "";
     if(dayLbl!==lastDay){ html+=`<div class="daydiv">${dayLbl}</div>`; lastDay=dayLbl; }
     const sid=r.vid||stadiumIdForVenue(r.venue);
+    const coded = r.hc && r.ac;   // group game, or a knockout tie whose teams are now known
     const koLabel=(lbl)=>lbl.replace(/Group ([A-L])/g,(m,g)=>groupLink(g,m));
-    const tline = r.ko
-      ? (label)=>`<div class="tline"><span class="flag" style="opacity:.5">🏳️</span><span class="nm" style="color:var(--muted)">${koLabel(label)}</span></div>`
-      : (c,scr)=>`<a class="tline" href="#/team/${c}"><span class="flag">${flag(c)}</span><span class="nm">${tname(c)}</span>`+
+    const labelTline=(label)=>`<div class="tline"><span class="flag" style="opacity:.5">🏳️</span><span class="nm" style="color:var(--muted)">${koLabel(label)}</span></div>`;
+    const codedTline=(c,scr)=>`<a class="tline" href="#/team/${c}"><span class="flag">${flag(c)}</span><span class="nm">${tname(c)}</span>`+
           (played?`<span class="scr">${scr}</span>`:`<span class="pct" title="Chance to win the tournament">${P[c].toFixed(1)}%</span>`)+`</a>`;
     let oddsHtml="";
-    if(!r.ko && !played){ const o=titleOdds(r.hc,r.ac,P); oddsHtml=`<div class="modds" title="The two teams' chances of winning the tournament, as simple odds (home : away)">⚖️ title odds&nbsp;<b>${o.a} : ${o.b}</b></div>`; }
-    const teamsHtml = (r.ko ? tline(r.home)+tline(r.away) : tline(r.hc,r.hs)+tline(r.ac,r.as))+oddsHtml;
+    if(coded && !played){ const o=titleOdds(r.hc,r.ac,P); oddsHtml=`<div class="modds" title="The two teams' chances of winning the tournament, as simple odds (home : away)">⚖️ title odds&nbsp;<b>${o.a} : ${o.b}</b></div>`; }
+    const teamsHtml = (coded ? codedTline(r.hc,r.hs)+codedTline(r.ac,r.as) : labelTline(r.home)+labelTline(r.away))+oddsHtml;
     const gm=/^Group ([A-L])$/.exec(r.stage);
     const stageHtml = gm ? groupLink(gm[1],r.stage) : r.stage;
     html+=`<div class="mrow">
@@ -1066,14 +1066,21 @@ function groupTable(g,tbl,hi){
       <td>${s.P}</td><td>${gd>0?'+':''}${gd}</td><td class="pts">${s.Pts}</td></tr>`; }).join("");
   return `<table><thead><tr><th>#</th><th class="l">Team</th><th>P</th><th>GD</th><th>Pts</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
-function matchMiniRow(m){
-  const [h,a,hs,as]=m, utc=utcOf(h,a), played=hs!=null;
+// Accepts a normalized object {hc,ac,hs,as,utc,round}. Works for group and resolved knockout.
+function matchMiniRow(o){
+  const {hc,ac,hs,as,utc}=o, played=hs!=null;
   const when=utc?fmtZone(utc,LUX,{weekday:"short",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}):"TBD";
   return `<div style="display:flex;align-items:center;gap:9px;padding:8px 0;border-top:1px solid var(--line);font-size:13px">
-    <span style="color:var(--muted-2);width:150px;flex:0 0 auto;font-size:11px">${when}</span>
-    ${flagLink(h)}<a class="lnk" href="#/team/${h}" style="font-weight:600;flex:1">${tname(h)}</a>
+    <span style="color:var(--muted-2);width:150px;flex:0 0 auto;font-size:11px">${when}${o.round?` · ${o.round}`:""}</span>
+    ${flagLink(hc)}<a class="lnk" href="#/team/${hc}" style="font-weight:600;flex:1">${tname(hc)}</a>
     <span style="font-weight:800;font-variant-numeric:tabular-nums;color:${played?'var(--txt)':'var(--muted-2)'}">${played?`${hs}–${as}`:"v"}</span>
-    <a class="lnk" href="#/team/${a}" style="font-weight:600;flex:1;text-align:right">${tname(a)}</a>${flagLink(a)}</div>`;
+    <a class="lnk" href="#/team/${ac}" style="font-weight:600;flex:1;text-align:right">${tname(ac)}</a>${flagLink(ac)}</div>`;
+}
+// A team's matches as normalized objects: all group games + any resolved knockout ties.
+function teamFixtures(code){
+  const g=MATCHES.filter(m=>m[0]===code||m[1]===code).map(m=>({hc:m[0],ac:m[1],hs:m[2],as:m[3],utc:utcOf(m[0],m[1])}));
+  const k=(typeof KNOCKOUT!=="undefined"?KNOCKOUT:[]).filter(x=>x.hc===code||x.ac===code).map(x=>({hc:x.hc,ac:x.ac,hs:x.hs,as:x.as,utc:x.utc,round:x.round}));
+  return [...g,...k].sort((a,b)=>(a.utc||"z").localeCompare(b.utc||"z"));
 }
 
 /* ---- team detail ---- */
@@ -1081,7 +1088,7 @@ function renderTeamDetail(code){
   const el=$("#team-detail"); if(!el) return;
   if(!T[code]){ el.innerHTML=`<div class="empty-state"><div class="big">🏳️</div><b>Unknown team</b><small>No team with code “${code}”.</small></div>`; return; }
   const P=probsNow(), g=T[code][2], tbl=computeStandings();
-  const ms=MATCHES.filter(m=>m[0]===code||m[1]===code);
+  const ms=teamFixtures(code);
   const crest=(typeof TEAM_IMG!=="undefined"&&TEAM_IMG[code])||"";
   el.innerHTML=`
     <div class="detail-hero">
@@ -1100,7 +1107,7 @@ function renderTeamDetail(code){
       </div>
       <div class="stat-panel">
         <h3><span class="ic" style="background:rgba(245,197,66,.15)">📅</span>Fixtures</h3>
-        <div class="psub">${ms.length} listed (group stage)</div>
+        <div class="psub">${ms.length} listed</div>
         ${ms.length?ms.map(matchMiniRow).join(""):'<div class="psub">No fixtures listed yet.</div>'}
       </div>
     </div>
@@ -1133,8 +1140,7 @@ function renderPlayerDetail(id){
   const myAge=ageFrom(r.dob);
   const posMates=sq.filter(p=>p.p===r.p && p!==r);
   const posAges=sq.filter(p=>p.p===r.p).map(p=>ageFrom(p.dob));
-  const next=MATCHES.filter(m=>(m[0]===code||m[1]===code)&&m[2]==null)
-    .sort((a,b)=>(utcOf(a[0],a[1])||"z").localeCompare(utcOf(b[0],b[1])||"z"))[0];
+  const next=teamFixtures(code).filter(m=>m.hs==null)[0];
   const ctx=[];
   if(r.c!=null) ctx.push(capsRank===1?`Most-capped player in the squad (${r.c} caps)`:`${ord(capsRank)} most-capped in the squad (${r.c} caps)`);
   if(r.g) ctx.push(`Has scored ${r.g} international goal${r.g>1?"s":""}`);
@@ -1208,7 +1214,10 @@ function renderStadiumDetail(id){
   if(!s){ el.innerHTML=`<div class="empty-state"><div class="big">🏟️</div><b>Unknown stadium</b></div>`; return; }
   const local=fmtZone(new Date().toISOString(),s.tz,{weekday:"short",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"});
   const maps=`https://www.google.com/maps/dir/?api=1&destination=${s.lat},${s.lng}`;
-  const here=MATCHES.filter(m=>{ const v=(venueOf(m[0],m[1])||"").toLowerCase(); return v && (v.includes(s.name.toLowerCase())||(s.wcName&&v.includes(s.wcName.toLowerCase()))); });
+  const here=[
+    ...MATCHES.filter(m=>stadiumIdForVenue(venueOf(m[0],m[1]))===id).map(m=>({hc:m[0],ac:m[1],hs:m[2],as:m[3],utc:utcOf(m[0],m[1])})),
+    ...(typeof KNOCKOUT!=="undefined"?KNOCKOUT:[]).filter(k=>k.vid===id && k.hc && k.ac).map(k=>({hc:k.hc,ac:k.ac,hs:k.hs,as:k.as,utc:k.utc,round:k.round})),
+  ].sort((a,b)=>(a.utc||"z").localeCompare(b.utc||"z"));
   const photo=(typeof STADIUM_IMG!=="undefined"&&STADIUM_IMG[id])||"";
   el.innerHTML=`
     <div class="std-layout">

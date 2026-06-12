@@ -1,7 +1,8 @@
-/* Full 104-match schedule — parsed from the rendered fixtures on Wikipedia's
-   "2026 FIFA World Cup" article. 72 group matches (with team codes + any played
-   scores) + 32 knockout matches (teams TBD, shown as bracket labels).
-   UTC kickoffs computed from each venue's local time + offset. */
+/* Full 104-match schedule — auto-generated from Wikipedia's rendered fixtures by
+   .github/workflows/results-snapshot.yml. 72 group matches (codes + final scores)
+   + 32 knockout matches (teams + scores resolved as the bracket fills). UTC
+   kickoffs computed from each venue's local time + offset. Self-owned: survives
+   any live feed going away. Format: MATCHES=[hc,ac,hs,as,status,stage,"",venue,""]. */
 const MATCHES=[
 ["MEX","RSA",2,0,"fin","Group A","","Estadio Azteca",""],
 ["KOR","CZE",2,1,"fin","Group A","","Estadio Akron",""],
@@ -80,36 +81,36 @@ const MATCHES=[
 const FIX={"MEX-RSA":["2026-06-11T19:00:00Z","Estadio Azteca"],"KOR-CZE":["2026-06-12T02:00:00Z","Estadio Akron"],"CAN-BIH":["2026-06-12T19:00:00Z","BMO Field"],"USA-PAR":["2026-06-13T01:00:00Z","SoFi Stadium"],"QAT-SUI":["2026-06-13T19:00:00Z","Levi's Stadium"],"BRA-MAR":["2026-06-13T22:00:00Z","MetLife Stadium"],"HAI-SCO":["2026-06-14T01:00:00Z","Gillette Stadium"],"AUS-TUR":["2026-06-14T04:00:00Z","BC Place"],"GER-CUW":["2026-06-14T17:00:00Z","NRG Stadium"],"NED-JPN":["2026-06-14T20:00:00Z","AT&T Stadium"],"CIV-ECU":["2026-06-14T23:00:00Z","Lincoln Financial Field"],"SWE-TUN":["2026-06-15T02:00:00Z","Estadio BBVA"],"ESP-CPV":["2026-06-15T16:00:00Z","Mercedes-Benz Stadium"],"BEL-EGY":["2026-06-15T19:00:00Z","Lumen Field"],"KSA-URU":["2026-06-15T22:00:00Z","Hard Rock Stadium"],"IRN-NZL":["2026-06-16T01:00:00Z","SoFi Stadium"],"FRA-SEN":["2026-06-16T19:00:00Z","MetLife Stadium"],"IRQ-NOR":["2026-06-16T22:00:00Z","Gillette Stadium"],"ARG-ALG":["2026-06-17T01:00:00Z","Arrowhead Stadium"],"AUT-JOR":["2026-06-17T04:00:00Z","Levi's Stadium"],"POR-COD":["2026-06-17T17:00:00Z","NRG Stadium"],"ENG-CRO":["2026-06-17T20:00:00Z","AT&T Stadium"],"GHA-PAN":["2026-06-17T23:00:00Z","BMO Field"],"UZB-COL":["2026-06-18T02:00:00Z","Estadio Azteca"],"CZE-RSA":["2026-06-18T16:00:00Z","Mercedes-Benz Stadium"],"SUI-BIH":["2026-06-18T19:00:00Z","SoFi Stadium"],"CAN-QAT":["2026-06-18T22:00:00Z","BC Place"],"MEX-KOR":["2026-06-19T01:00:00Z","Estadio Akron"],"USA-AUS":["2026-06-19T19:00:00Z","Lumen Field"],"SCO-MAR":["2026-06-19T22:00:00Z","Gillette Stadium"],"BRA-HAI":["2026-06-20T00:30:00Z","Lincoln Financial Field"],"TUR-PAR":["2026-06-20T03:00:00Z","Levi's Stadium"],"NED-SWE":["2026-06-20T17:00:00Z","NRG Stadium"],"GER-CIV":["2026-06-20T20:00:00Z","BMO Field"],"ECU-CUW":["2026-06-21T00:00:00Z","Arrowhead Stadium"],"TUN-JPN":["2026-06-21T04:00:00Z","Estadio BBVA"],"ESP-KSA":["2026-06-21T16:00:00Z","Mercedes-Benz Stadium"],"BEL-IRN":["2026-06-21T19:00:00Z","SoFi Stadium"],"URU-CPV":["2026-06-21T22:00:00Z","Hard Rock Stadium"],"NZL-EGY":["2026-06-22T01:00:00Z","BC Place"],"ARG-AUT":["2026-06-22T17:00:00Z","AT&T Stadium"],"FRA-IRQ":["2026-06-22T21:00:00Z","Lincoln Financial Field"],"NOR-SEN":["2026-06-23T00:00:00Z","MetLife Stadium"],"JOR-ALG":["2026-06-23T03:00:00Z","Levi's Stadium"],"POR-UZB":["2026-06-23T17:00:00Z","NRG Stadium"],"ENG-GHA":["2026-06-23T20:00:00Z","Gillette Stadium"],"PAN-CRO":["2026-06-23T23:00:00Z","BMO Field"],"COL-COD":["2026-06-24T02:00:00Z","Estadio Akron"],"SUI-CAN":["2026-06-24T19:00:00Z","BC Place"],"BIH-QAT":["2026-06-24T19:00:00Z","Lumen Field"],"SCO-BRA":["2026-06-24T22:00:00Z","Hard Rock Stadium"],"MAR-HAI":["2026-06-24T22:00:00Z","Mercedes-Benz Stadium"],"CZE-MEX":["2026-06-25T01:00:00Z","Estadio Azteca"],"RSA-KOR":["2026-06-25T01:00:00Z","Estadio BBVA"],"CUW-CIV":["2026-06-25T20:00:00Z","Lincoln Financial Field"],"ECU-GER":["2026-06-25T20:00:00Z","MetLife Stadium"],"JPN-SWE":["2026-06-25T23:00:00Z","AT&T Stadium"],"TUN-NED":["2026-06-25T23:00:00Z","Arrowhead Stadium"],"TUR-USA":["2026-06-26T02:00:00Z","SoFi Stadium"],"PAR-AUS":["2026-06-26T02:00:00Z","Levi's Stadium"],"NOR-FRA":["2026-06-26T19:00:00Z","Gillette Stadium"],"SEN-IRQ":["2026-06-26T19:00:00Z","BMO Field"],"CPV-KSA":["2026-06-27T00:00:00Z","NRG Stadium"],"URU-ESP":["2026-06-27T00:00:00Z","Estadio Akron"],"EGY-IRN":["2026-06-27T03:00:00Z","Lumen Field"],"NZL-BEL":["2026-06-27T03:00:00Z","BC Place"],"PAN-ENG":["2026-06-27T21:00:00Z","MetLife Stadium"],"CRO-GHA":["2026-06-27T21:00:00Z","Lincoln Financial Field"],"COL-POR":["2026-06-27T23:30:00Z","Hard Rock Stadium"],"COD-UZB":["2026-06-27T23:30:00Z","Mercedes-Benz Stadium"],"ALG-AUT":["2026-06-28T02:00:00Z","Arrowhead Stadium"],"JOR-ARG":["2026-06-28T02:00:00Z","AT&T Stadium"]};
 
 const KNOCKOUT=[
-{utc:"2026-06-28T19:00:00Z",home:"Runner-up Group A",away:"Runner-up Group B",vid:"sofi-stadium",venue:"SoFi Stadium",round:"Round of 32"},
-{utc:"2026-06-29T17:00:00Z",home:"Winner Group C",away:"Runner-up Group F",vid:"nrg-stadium",venue:"NRG Stadium",round:"Round of 32"},
-{utc:"2026-06-29T20:30:00Z",home:"Winner Group E",away:"3rd Group A/B/C/D/F",vid:"gillette-stadium",venue:"Gillette Stadium",round:"Round of 32"},
-{utc:"2026-06-30T01:00:00Z",home:"Winner Group F",away:"Runner-up Group C",vid:"estadio-bbva",venue:"Estadio BBVA",round:"Round of 32"},
-{utc:"2026-06-30T17:00:00Z",home:"Runner-up Group E",away:"Runner-up Group I",vid:"att-stadium",venue:"AT&T Stadium",round:"Round of 32"},
-{utc:"2026-06-30T21:00:00Z",home:"Winner Group I",away:"3rd Group C/D/F/G/H",vid:"metlife-stadium",venue:"MetLife Stadium",round:"Round of 32"},
-{utc:"2026-07-01T01:00:00Z",home:"Winner Group A",away:"3rd Group C/E/F/H/I",vid:"estadio-azteca",venue:"Estadio Azteca",round:"Round of 32"},
-{utc:"2026-07-01T16:00:00Z",home:"Winner Group L",away:"3rd Group E/H/I/J/K",vid:"mercedes-benz-stadium",venue:"Mercedes-Benz Stadium",round:"Round of 32"},
-{utc:"2026-07-01T20:00:00Z",home:"Winner Group G",away:"3rd Group A/E/H/I/J",vid:"lumen-field",venue:"Lumen Field",round:"Round of 32"},
-{utc:"2026-07-02T00:00:00Z",home:"Winner Group D",away:"3rd Group B/E/F/I/J",vid:"levis-stadium",venue:"Levi's Stadium",round:"Round of 32"},
-{utc:"2026-07-02T19:00:00Z",home:"Winner Group H",away:"Runner-up Group J",vid:"sofi-stadium",venue:"SoFi Stadium",round:"Round of 32"},
-{utc:"2026-07-02T23:00:00Z",home:"Runner-up Group K",away:"Runner-up Group L",vid:"bmo-field",venue:"BMO Field",round:"Round of 32"},
-{utc:"2026-07-03T03:00:00Z",home:"Winner Group B",away:"3rd Group E/F/G/I/J",vid:"bc-place",venue:"BC Place",round:"Round of 32"},
-{utc:"2026-07-03T18:00:00Z",home:"Runner-up Group D",away:"Runner-up Group G",vid:"att-stadium",venue:"AT&T Stadium",round:"Round of 32"},
-{utc:"2026-07-03T22:00:00Z",home:"Winner Group J",away:"Runner-up Group H",vid:"hard-rock-stadium",venue:"Hard Rock Stadium",round:"Round of 32"},
-{utc:"2026-07-04T01:30:00Z",home:"Winner Group K",away:"3rd Group D/E/I/J/L",vid:"arrowhead-stadium",venue:"Arrowhead Stadium",round:"Round of 32"},
-{utc:"2026-07-04T17:00:00Z",home:"Winner Match 73",away:"Winner Match 75",vid:"nrg-stadium",venue:"NRG Stadium",round:"Round of 16"},
-{utc:"2026-07-04T21:00:00Z",home:"Winner Match 74",away:"Winner Match 77",vid:"lincoln-financial-field",venue:"Lincoln Financial Field",round:"Round of 16"},
-{utc:"2026-07-05T20:00:00Z",home:"Winner Match 76",away:"Winner Match 78",vid:"metlife-stadium",venue:"MetLife Stadium",round:"Round of 16"},
-{utc:"2026-07-06T00:00:00Z",home:"Winner Match 79",away:"Winner Match 80",vid:"estadio-azteca",venue:"Estadio Azteca",round:"Round of 16"},
-{utc:"2026-07-06T19:00:00Z",home:"Winner Match 83",away:"Winner Match 84",vid:"att-stadium",venue:"AT&T Stadium",round:"Round of 16"},
-{utc:"2026-07-07T00:00:00Z",home:"Winner Match 81",away:"Winner Match 82",vid:"lumen-field",venue:"Lumen Field",round:"Round of 16"},
-{utc:"2026-07-07T16:00:00Z",home:"Winner Match 86",away:"Winner Match 88",vid:"mercedes-benz-stadium",venue:"Mercedes-Benz Stadium",round:"Round of 16"},
-{utc:"2026-07-07T20:00:00Z",home:"Winner Match 85",away:"Winner Match 87",vid:"bc-place",venue:"BC Place",round:"Round of 16"},
-{utc:"2026-07-09T20:00:00Z",home:"Winner Match 89",away:"Winner Match 90",vid:"gillette-stadium",venue:"Gillette Stadium",round:"Quarter-final"},
-{utc:"2026-07-10T19:00:00Z",home:"Winner Match 93",away:"Winner Match 94",vid:"sofi-stadium",venue:"SoFi Stadium",round:"Quarter-final"},
-{utc:"2026-07-11T21:00:00Z",home:"Winner Match 91",away:"Winner Match 92",vid:"hard-rock-stadium",venue:"Hard Rock Stadium",round:"Quarter-final"},
-{utc:"2026-07-12T01:00:00Z",home:"Winner Match 95",away:"Winner Match 96",vid:"arrowhead-stadium",venue:"Arrowhead Stadium",round:"Quarter-final"},
-{utc:"2026-07-14T19:00:00Z",home:"Winner Match 97",away:"Winner Match 98",vid:"att-stadium",venue:"AT&T Stadium",round:"Semi-final"},
-{utc:"2026-07-15T19:00:00Z",home:"Winner Match 99",away:"Winner Match 100",vid:"mercedes-benz-stadium",venue:"Mercedes-Benz Stadium",round:"Semi-final"},
-{utc:"2026-07-18T21:00:00Z",home:"Loser Match 101",away:"Loser Match 102",vid:"hard-rock-stadium",venue:"Hard Rock Stadium",round:"Third place"},
-{utc:"2026-07-19T19:00:00Z",home:"Winner Match 101",away:"Winner Match 102",vid:"metlife-stadium",venue:"MetLife Stadium",round:"Final"}
+{utc:"2026-06-28T19:00:00Z",round:"Round of 32",vid:"sofi-stadium",venue:"SoFi Stadium",home:"Runner-up Group A",away:"Runner-up Group B",hc:null,ac:null,hs:null,as:null},
+{utc:"2026-06-29T17:00:00Z",round:"Round of 32",vid:"nrg-stadium",venue:"NRG Stadium",home:"Winner Group C",away:"Runner-up Group F",hc:null,ac:null,hs:null,as:null},
+{utc:"2026-06-29T20:30:00Z",round:"Round of 32",vid:"gillette-stadium",venue:"Gillette Stadium",home:"Winner Group E",away:"3rd Group A/B/C/D/F",hc:null,ac:null,hs:null,as:null},
+{utc:"2026-06-30T01:00:00Z",round:"Round of 32",vid:"estadio-bbva",venue:"Estadio BBVA",home:"Winner Group F",away:"Runner-up Group C",hc:null,ac:null,hs:null,as:null},
+{utc:"2026-06-30T17:00:00Z",round:"Round of 32",vid:"att-stadium",venue:"AT&T Stadium",home:"Runner-up Group E",away:"Runner-up Group I",hc:null,ac:null,hs:null,as:null},
+{utc:"2026-06-30T21:00:00Z",round:"Round of 32",vid:"metlife-stadium",venue:"MetLife Stadium",home:"Winner Group I",away:"3rd Group C/D/F/G/H",hc:null,ac:null,hs:null,as:null},
+{utc:"2026-07-01T01:00:00Z",round:"Round of 32",vid:"estadio-azteca",venue:"Estadio Azteca",home:"Winner Group A",away:"3rd Group C/E/F/H/I",hc:null,ac:null,hs:null,as:null},
+{utc:"2026-07-01T16:00:00Z",round:"Round of 32",vid:"mercedes-benz-stadium",venue:"Mercedes-Benz Stadium",home:"Winner Group L",away:"3rd Group E/H/I/J/K",hc:null,ac:null,hs:null,as:null},
+{utc:"2026-07-01T20:00:00Z",round:"Round of 32",vid:"lumen-field",venue:"Lumen Field",home:"Winner Group G",away:"3rd Group A/E/H/I/J",hc:null,ac:null,hs:null,as:null},
+{utc:"2026-07-02T00:00:00Z",round:"Round of 32",vid:"levis-stadium",venue:"Levi's Stadium",home:"Winner Group D",away:"3rd Group B/E/F/I/J",hc:null,ac:null,hs:null,as:null},
+{utc:"2026-07-02T19:00:00Z",round:"Round of 32",vid:"sofi-stadium",venue:"SoFi Stadium",home:"Winner Group H",away:"Runner-up Group J",hc:null,ac:null,hs:null,as:null},
+{utc:"2026-07-02T23:00:00Z",round:"Round of 32",vid:"bmo-field",venue:"BMO Field",home:"Runner-up Group K",away:"Runner-up Group L",hc:null,ac:null,hs:null,as:null},
+{utc:"2026-07-03T03:00:00Z",round:"Round of 32",vid:"bc-place",venue:"BC Place",home:"Winner Group B",away:"3rd Group E/F/G/I/J",hc:null,ac:null,hs:null,as:null},
+{utc:"2026-07-03T18:00:00Z",round:"Round of 32",vid:"att-stadium",venue:"AT&T Stadium",home:"Runner-up Group D",away:"Runner-up Group G",hc:null,ac:null,hs:null,as:null},
+{utc:"2026-07-03T22:00:00Z",round:"Round of 32",vid:"hard-rock-stadium",venue:"Hard Rock Stadium",home:"Winner Group J",away:"Runner-up Group H",hc:null,ac:null,hs:null,as:null},
+{utc:"2026-07-04T01:30:00Z",round:"Round of 32",vid:"arrowhead-stadium",venue:"Arrowhead Stadium",home:"Winner Group K",away:"3rd Group D/E/I/J/L",hc:null,ac:null,hs:null,as:null},
+{utc:"2026-07-04T17:00:00Z",round:"Round of 16",vid:"nrg-stadium",venue:"NRG Stadium",home:"Winner Match 73",away:"Winner Match 75",hc:null,ac:null,hs:null,as:null},
+{utc:"2026-07-04T21:00:00Z",round:"Round of 16",vid:"lincoln-financial-field",venue:"Lincoln Financial Field",home:"Winner Match 74",away:"Winner Match 77",hc:null,ac:null,hs:null,as:null},
+{utc:"2026-07-05T20:00:00Z",round:"Round of 16",vid:"metlife-stadium",venue:"MetLife Stadium",home:"Winner Match 76",away:"Winner Match 78",hc:null,ac:null,hs:null,as:null},
+{utc:"2026-07-06T00:00:00Z",round:"Round of 16",vid:"estadio-azteca",venue:"Estadio Azteca",home:"Winner Match 79",away:"Winner Match 80",hc:null,ac:null,hs:null,as:null},
+{utc:"2026-07-06T19:00:00Z",round:"Round of 16",vid:"att-stadium",venue:"AT&T Stadium",home:"Winner Match 83",away:"Winner Match 84",hc:null,ac:null,hs:null,as:null},
+{utc:"2026-07-07T00:00:00Z",round:"Round of 16",vid:"lumen-field",venue:"Lumen Field",home:"Winner Match 81",away:"Winner Match 82",hc:null,ac:null,hs:null,as:null},
+{utc:"2026-07-07T16:00:00Z",round:"Round of 16",vid:"mercedes-benz-stadium",venue:"Mercedes-Benz Stadium",home:"Winner Match 86",away:"Winner Match 88",hc:null,ac:null,hs:null,as:null},
+{utc:"2026-07-07T20:00:00Z",round:"Round of 16",vid:"bc-place",venue:"BC Place",home:"Winner Match 85",away:"Winner Match 87",hc:null,ac:null,hs:null,as:null},
+{utc:"2026-07-09T20:00:00Z",round:"Quarter-final",vid:"gillette-stadium",venue:"Gillette Stadium",home:"Winner Match 89",away:"Winner Match 90",hc:null,ac:null,hs:null,as:null},
+{utc:"2026-07-10T19:00:00Z",round:"Quarter-final",vid:"sofi-stadium",venue:"SoFi Stadium",home:"Winner Match 93",away:"Winner Match 94",hc:null,ac:null,hs:null,as:null},
+{utc:"2026-07-11T21:00:00Z",round:"Quarter-final",vid:"hard-rock-stadium",venue:"Hard Rock Stadium",home:"Winner Match 91",away:"Winner Match 92",hc:null,ac:null,hs:null,as:null},
+{utc:"2026-07-12T01:00:00Z",round:"Quarter-final",vid:"arrowhead-stadium",venue:"Arrowhead Stadium",home:"Winner Match 95",away:"Winner Match 96",hc:null,ac:null,hs:null,as:null},
+{utc:"2026-07-14T19:00:00Z",round:"Semi-final",vid:"att-stadium",venue:"AT&T Stadium",home:"Winner Match 97",away:"Winner Match 98",hc:null,ac:null,hs:null,as:null},
+{utc:"2026-07-15T19:00:00Z",round:"Semi-final",vid:"mercedes-benz-stadium",venue:"Mercedes-Benz Stadium",home:"Winner Match 99",away:"Winner Match 100",hc:null,ac:null,hs:null,as:null},
+{utc:"2026-07-18T21:00:00Z",round:"Third place",vid:"hard-rock-stadium",venue:"Hard Rock Stadium",home:"Loser Match 101",away:"Loser Match 102",hc:null,ac:null,hs:null,as:null},
+{utc:"2026-07-19T19:00:00Z",round:"Final",vid:"metlife-stadium",venue:"MetLife Stadium",home:"Winner Match 101",away:"Winner Match 102",hc:null,ac:null,hs:null,as:null}
 ];
