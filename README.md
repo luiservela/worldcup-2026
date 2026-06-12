@@ -1,0 +1,132 @@
+# FIFA World Cup 26™ — Local Hub
+
+A single self-contained `index.html` that presents the 2026 FIFA World Cup as an
+official-feeling, vibrant-but-sophisticated web hub. No build step, no server,
+no dependencies — just open the file in any modern browser.
+
+```
+worldcup-2026/
+├── index.html   ← the entire app (HTML + CSS + JS in one file)
+└── README.md
+```
+
+## Run it
+
+Double-click `index.html`, or:
+
+```bash
+open index.html        # macOS
+```
+
+That's it — everything (styles, logic, data, flags) lives inside the one file.
+
+---
+
+## What the page does
+
+A dark, gradient-lit interface with a sticky glass header. The **hero is a live
+win-probability chart** (see below), followed by a gold "Opening Match" card and
+four tabbed sections:
+
+### 0. Win Probability (the hero)
+A stacked **area chart** — x-axis = time, y-axis = win probability — showing how
+each of the 48 nations' chance of lifting the trophy has evolved. Built on
+[Plotly](https://plotly.com/javascript/): click any team in the legend to toggle
+it, double-click to isolate one, plus **Top contenders / All 48 / Clear** presets
+and a search box to add a specific team.
+
+- **Every column is normalized to total 100%**, so the stack always reaches the
+  top regardless of bookmaker overround. Eliminated teams decay toward 0% and
+  fade out of the stack.
+- **Source: [Polymarket](https://polymarket.com/event/world-cup-winner)
+  prediction markets** — the "Yes" share price of each team's *World Cup Winner*
+  market is a market-implied probability, and Polymarket's `prices-history`
+  endpoint (CORS-open, no API key) hands us a full per-team time-series. That
+  time-series *is* our x-axis — no need to snapshot daily ourselves.
+- A **baked-in seed** (the 11 Jun 2026 snapshot of all 48 teams) renders the
+  chart instantly and even fully offline; live history layers in on top and is
+  cached in `localStorage` for an hour. **Refresh** re-pulls live data.
+
+### 1. Matches
+Fixture cards grouped by day, each showing both teams (emoji flags), score
+placeholders, stage, status (Upcoming / Opening Match / Live / Full-time),
+venue, and kickoff time. Includes the prominent **Update Stats Live** button
+(see below).
+
+### 2. Groups
+All 12 groups (A–L) with full standings tables — Played, Won, Drawn, Lost,
+Goal Difference, Points. The top-two qualification spots are highlighted in
+green. **Standings are computed automatically from match results**, so they can
+never disagree with the fixtures.
+
+### 3. Teams
+All 48 nations as flag cards, sorted alphabetically, each tagged with its group
+and confederation (UEFA, CONMEBOL, CAF, AFC, CONCACAF, OFC).
+
+### 4. Stats
+A "by the numbers" KPI grid (matches played / 104, goals, nations, host cities),
+a Golden Boot panel, and a "Did you know" facts panel. KPIs update from real
+scores when the live feed is synced.
+
+---
+
+## The "Update Stats Live" button
+
+The glowing button in the Matches header pulls **real** data from
+[TheSportsDB](https://www.thesportsdb.com/) (a free, CORS-friendly football API)
+and merges it into the page:
+
+1. Fetches World Cup events for the Matchday-1 dates.
+2. Matches returned teams to the local fixtures (by name, either orientation).
+3. Writes any posted scores, then recomputes standings and stats live.
+4. Reports the result inline (synced / no results yet / offline).
+
+**It only writes real results.** If the feed hasn't published a fixture's score
+yet, the page says so rather than inventing one. No API key is required to try
+it; you can add your own TheSportsDB key in `LIVE_CFG` for higher rate limits.
+
+---
+
+## Data & accuracy
+
+- **Groups and Matchday-1 fixtures** reflect the real 2026 final draw
+  (held 5 Dec 2025) and the published schedule — verified against Wikipedia and
+  public schedule sources.
+- **No results are shown by default** because the tournament is at kickoff
+  (opener: Mexico vs South Africa, 11 Jun 2026, Estadio Azteca). All standings
+  start at zero.
+- One fixture (South Korea vs Czechia) has a confirmed date but unconfirmed
+  venue, shown generically.
+
+### Editing the data
+
+All data lives in clearly-marked objects near the bottom of `index.html`:
+
+- `T` — the 48 teams: `code: [name, flag, group, confederation]`
+- `MATCHES` — fixtures: `[home, away, homeScore, awayScore, status, stage, day, venue, kickoff]`
+- `NOTES` — the "Did you know" facts
+
+To add a result by hand, set the score fields and status, e.g.:
+
+```js
+["MEX","RSA", 2, 1, "fin", "Group A", "Thu 11 Jun", "Estadio Azteca, Mexico City", "19:00 GMT"],
+//          ^hs ^as ^status
+```
+
+Standings, goal totals, and KPIs recalculate on reload.
+
+---
+
+## Tech notes
+
+- **Single file** — HTML, CSS, and vanilla JS; zero dependencies, zero assets
+  (flags are Unicode emoji).
+- **Tournament format** — 48 teams, 12 groups of 4, top 2 + best 8 third-placed
+  advance to a Round of 32.
+- **Known limits** — static page (manual refresh, not auto-polling); individual
+  goalscorers (Golden Boot) are not fetched from the free API tier.
+
+---
+
+*Built as a local hub. Data shown reflects the verified 2026 draw at a
+pre-tournament state. Not affiliated with FIFA.*
