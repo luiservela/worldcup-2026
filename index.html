@@ -886,35 +886,52 @@ function applyPreset(p){
   renderForecast(fcTimeline);
 }
 
-function renderForecast(tl){
-  fcTimeline=tl;
-  const ranked=fcRankedCodes(tl);
-  if(typeof Plotly==="undefined"){ return renderFallback(tl,ranked); }
-  $("#fc-fallback").style.display="none"; $("#fc-chart").style.display="block";
+// Tournament window: one bar per day from kickoff to the final.
+const TOUR_START="2026-06-11", TOUR_END="2026-07-19";
+function tournamentDays(){ const out=[]; const d=new Date(TOUR_START+"T00:00:00Z"), end=new Date(TOUR_END+"T00:00:00Z"); while(d<=end){ out.push(d.toISOString().slice(0,10)); d.setUTCDate(d.getUTCDate()+1);} return out; }
+// Per-day normalized win-probability. Past/today = real data (colored); future = null (blank/grey).
+function dailyMatrix(){
+  const days=tournamentDays(), today=new Date().toISOString().slice(0,10);
+  const live=fcTimeline&&fcTimeline.live, M={}; ALL_CODES.forEach(c=>M[c]=[]);
+  for(const day of days){
+    if(day>today){ ALL_CODES.forEach(c=>M[c].push(null)); continue; }   // future → blank
+    const raw={};
+    if(live){ ALL_CODES.forEach(c=>{ const s=fcTimeline.series[c], ds=fcTimeline.dates; let v=0; for(let i=0;i<ds.length;i++){ if(ds[i]<=day) v=s[i]; else break; } raw[c]=Math.max(0,v); }); }
+    else { ALL_CODES.forEach(c=>raw[c]=(SEED[c]||0)/100); }
+    const sum=Object.values(raw).reduce((a,b)=>a+b,0)||1;
+    ALL_CODES.forEach(c=>M[c].push(raw[c]/sum*100));
+  }
+  return {days,today,M};
+}
 
-  const traces=ranked.map(c=>{
-    const vis=fcVisible.has(c)?true:"legendonly";
-    if(tl.single){
-      return { x:["Today"], y:[tl.series[c][0]], name:fcTitle(c), type:"bar",
-        marker:{color:COLOR[c]}, visible:vis, meta:c,
-        hovertemplate:`%{fullData.name}<br>%{y:.1f}%<extra></extra>` };
-    }
-    return { x:tl.dates, y:tl.series[c], name:fcTitle(c), type:"scatter", mode:"none",
-      stackgroup:"one", groupnorm:"percent", fillcolor:COLOR[c], line:{width:0,color:COLOR[c]},
-      visible:vis, meta:c, hovertemplate:`%{fullData.name}<br>%{x}: %{y:.1f}%<extra></extra>` };
-  });
+function renderForecast(tl){
+  if(tl) fcTimeline=tl;
+  const ranked=fcRankedCodes(fcTimeline);
+  if(typeof Plotly==="undefined"){ return renderFallback(fcTimeline,ranked); }
+  $("#fc-fallback").style.display="none"; $("#fc-chart").style.display="block";
+  const {days,today,M}=dailyMatrix();
+  const traces=ranked.map(c=>({
+    type:"bar", x:days, y:M[c], name:fcTitle(c),
+    marker:{color:COLOR[c], line:{width:0}}, visible:fcVisible.has(c)?true:"legendonly", meta:c,
+    hovertemplate:`%{x|%d %b}<br>${fcTitle(c)}: %{y:.1f}%<extra></extra>`,
+  }));
+  const DAY=86400000, half=DAY/2;
+  const axStart=new Date(new Date(TOUR_START+"T00:00:00Z").getTime()-half).toISOString();
+  const axEnd  =new Date(new Date(TOUR_END  +"T00:00:00Z").getTime()+half).toISOString();
+  const futureX0=new Date(new Date(today+"T00:00:00Z").getTime()+half).toISOString();
+  const midFuture=new Date((Date.parse(futureX0)+Date.parse(axEnd))/2).toISOString();
   const layout={
     paper_bgcolor:"rgba(0,0,0,0)", plot_bgcolor:"rgba(0,0,0,0)",
-    margin:{l:46,r:12,t:8,b:38},
+    margin:{l:46,r:12,t:8,b:42}, bargap:0.12, barmode:"stack",
     font:{color:"#8b92ad", family:'Segoe UI, system-ui, sans-serif', size:12},
-    xaxis:{showgrid:false, color:"#5c627a", type:tl.single?"category":"date", fixedrange:tl.single},
+    xaxis:{type:"date", range:[axStart,axEnd], showgrid:false, color:"#5c627a", tickformat:"%d %b", fixedrange:true},
     yaxis:{ticksuffix:"%", range:[0,100], gridcolor:"rgba(255,255,255,.06)", zeroline:false, color:"#5c627a", fixedrange:true},
     showlegend:true, legend:{bgcolor:"rgba(0,0,0,0)", font:{size:11}, traceorder:"normal"},
-    hovermode:"closest", barmode:tl.single?"stack":undefined,
+    hovermode:"closest",
+    shapes:[{type:"rect", xref:"x", yref:"paper", x0:futureX0, x1:axEnd, y0:0, y1:1, fillcolor:"rgba(255,255,255,.035)", line:{width:0}, layer:"below"}],
+    annotations:[{x:midFuture, y:0.5, xref:"x", yref:"paper", text:"Matches to come — odds fill in daily", showarrow:false, font:{size:12,color:"#565d76"}}],
   };
   Plotly.react("fc-chart", traces, layout, {displayModeBar:false, responsive:true});
-
-  // datalist for the search box
   $("#fc-teamlist").innerHTML=ranked.map(c=>`<option value="${tname(c)}">`).join("");
 }
 
