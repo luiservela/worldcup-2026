@@ -263,14 +263,18 @@
 
   /* ---- phones: navigation becomes a fixed bottom tab bar (thumb zone) ---- */
   @media(max-width:720px){
+    /* the topbar's backdrop-filter would become the containing block for the
+       fixed tab bar (pinning it to the topbar instead of the viewport) — so
+       drop the blur on phones and compensate with a more opaque background */
+    .topbar{backdrop-filter:none;-webkit-backdrop-filter:none;background:rgba(6,7,13,.97)}
     nav.tabs{position:fixed;left:0;right:0;bottom:0;top:auto;transform:none;z-index:60;
       border:none;border-top:1px solid var(--line);border-radius:0;
       background:rgba(6,7,13,.94);backdrop-filter:blur(18px) saturate(140%);
       justify-content:space-around;gap:2px;
       padding:6px 6px calc(6px + env(safe-area-inset-bottom))}
-    nav.tabs a{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10px;font-weight:700;padding:5px 2px;letter-spacing:.2px}
-    nav.tabs a::before{content:attr(data-ico);font-size:18px;line-height:1}
-    nav.tabs a.active{box-shadow:none}
+    .topbar nav.tabs a{flex:1;min-width:0;display:block;text-align:center;font-size:9.5px;font-weight:700;padding:5px 1px;letter-spacing:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .topbar nav.tabs a::before{content:attr(data-ico);display:block;font-size:18px;line-height:1;margin-bottom:3px}
+    .topbar nav.tabs a.active{box-shadow:none}
     main{padding-bottom:calc(110px + env(safe-area-inset-bottom))}
     .kick-dot{display:none}
     .topbar .live-btn{padding:9px 12px;font-size:11px}
@@ -327,7 +331,11 @@
      instead of a fixed-px calc that drifts out of sync. */
   body[data-view="odds"]{height:100vh;height:100dvh;overflow:hidden;display:flex;flex-direction:column}
   body[data-view="odds"] .topbar{flex:0 0 auto}
-  body[data-view="odds"] main{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
+  /* margin:0 + width:100% — main's base margin:0 auto would disable flex
+     stretch, making main fit-content-wide; on phones the movers strip's
+     max-content (~1100px) then blows up the layout viewport (zoom-out). */
+  body[data-view="odds"] main{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;margin:0;width:100%}
+  .fc-movers{min-width:0;max-width:100%}
   section.view.forecast-hero.active{display:flex;flex-direction:column;flex:1 1 auto;min-height:0}
   .fc-bar,.fc-movers{flex:0 0 auto}
   .fc-chart-wrap{flex:1 1 auto;min-height:0}
@@ -859,24 +867,27 @@ function mergeEvents(events){
 
 async function updateLive(auto){
   auto=auto===true;   // onclick may pass an event object
+  // Auto-sync is silent unless something actually changed — only a manual
+  // button press narrates progress/errors in the topbar status.
+  const say=(m,c)=>{ if(!auto||c==="ok") setStatus(m,c); };
   const btn=$("#live-btn");
   btn.disabled=true; btn.classList.add("loading");
-  setStatus("Fetching live scores from the feed…","work");
+  say("Fetching live scores from the feed…","work");
   try{
     const events=await fetchEvents(auto);
     if(!events.length){
-      setStatus("Reached the source but it returned no World Cup events yet. Try again once games are under way.","err");
+      say("Reached the source but it returned no World Cup events yet. Try again once games are under way.","err");
     }else{
       const {updated,live}=mergeEvents(events);
       if(updated){
         renderMatchList(); renderGroups();   // re-render only on real change
-        setStatus(`✓ Synced ${updated} match${updated>1?"es":""}${live?` · ${live} live now`:""} · standings & stats refreshed`,"ok");
+        say(`✓ Synced ${updated} match${updated>1?"es":""}${live?` · ${live} live now`:""} · standings & stats refreshed`,"ok");
       }else{
-        setStatus(`Connected — ${events.length} events found, but no results are posted for these fixtures yet.`,"err");
+        say(`Connected — ${events.length} events found, but no results are posted for these fixtures yet.`,"err");
       }
     }
   }catch(e){
-    setStatus("Couldn't reach the live feed (offline or blocked). Reconnect and retry, or add your own API key.","err");
+    say("Couldn't reach the live feed (offline or blocked). Reconnect and retry, or add your own API key.","err");
   }finally{
     btn.disabled=false; btn.classList.remove("loading");
   }
