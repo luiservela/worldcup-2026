@@ -36,7 +36,7 @@
       radial-gradient(800px 800px at 50% 120%, rgba(245,197,66,.10), transparent 60%),
       var(--bg);
     color:var(--txt);
-    min-height:100vh;
+    min-height:100vh;min-height:100dvh;
     -webkit-font-smoothing:antialiased;
     overflow-x:hidden;
   }
@@ -239,13 +239,15 @@
   .disclaimer{font-size:11px;color:var(--muted-2);background:rgba(46,123,255,.06);border:1px solid rgba(46,123,255,.18);padding:9px 14px;border-radius:10px;margin-top:16px;display:inline-flex;align-items:center;gap:8px;line-height:1.5}
   .disclaimer code{color:var(--gold)}
 
-  @media(max-width:640px){
+  @media(max-width:720px){
     .topbar-inner{flex-wrap:wrap;gap:12px}
     nav.tabs{position:static;transform:none;order:3;width:100%;justify-content:space-between}
     nav.tabs a{flex:1;text-align:center;padding:9px 6px}
     .topbar-right{order:2}
-    .stats-layout{grid-template-columns:1fr}
   }
+  /* ---- mobile: groups table can scroll horizontally instead of overflowing ---- */
+  .gscroll{overflow-x:auto}
+  @media(max-width:560px){ .gscroll table{min-width:330px} }
 
   /* ---------- Win-probability hero ---------- */
   .forecast-hero{padding-top:34px;padding-bottom:6px}
@@ -284,7 +286,8 @@
   .fc-colorbtn:hover{color:var(--txt);border-color:var(--line-strong)}
   .fc-crest-ctl{display:inline-flex;align-items:center;gap:7px;font-size:11px;color:var(--muted-2)}
   .fc-crest-ctl input[type=range]{width:92px;accent-color:var(--gold)}
-  body[data-view="odds"] .fc-chart{height:calc(100vh - 156px)}
+  body[data-view="odds"] .fc-chart{height:calc(100vh - 156px);height:calc(100dvh - 156px)}
+  @media(max-width:640px){ body[data-view="odds"] .fc-chart{height:calc(100dvh - 210px)} }
   .fc-chart-wrap{position:relative}
   #fc-crests{position:absolute;inset:0;pointer-events:none;overflow:visible;z-index:5}
   .fc-crest{position:absolute;transform:translate(-50%,-50%);border-radius:50%;overflow:hidden;background:#0b0e1a;border:2px solid rgba(255,255,255,.32);box-shadow:0 3px 10px rgba(0,0,0,.55);display:grid;place-items:center;pointer-events:auto;cursor:pointer;text-decoration:none;transition:transform .12s,border-color .12s}
@@ -670,9 +673,9 @@ function renderGroups(){
     });
     html+=`<div class="group" id="grp-${g}">
       <div class="group-head"><span class="g">${g}</span><b>Group ${g}</b></div>
-      <table><thead><tr>
+      <div class="gscroll"><table><thead><tr>
         <th>#</th><th class="l">Team</th><th>P</th><th>W</th><th>D</th><th>L</th><th>GD</th><th>Pts</th>
-      </tr></thead><tbody>${rows}</tbody></table>
+      </tr></thead><tbody>${rows}</tbody></table></div>
     </div>`;
   }
   $("#groups-grid").innerHTML=html;
@@ -1006,16 +1009,20 @@ function renderForecast(tl){
       m=new Date(Date.UTC(m.getUTCFullYear(),m.getUTCMonth()+1,1));
     } }
   const todayX=new Date(new Date(today+"T00:00:00Z").getTime()+half).toISOString();
+  // Responsive: thin the x-axis ticks and drop the 48-team legend on narrow (phone) widths.
+  const cw=(document.getElementById("fc-chart")||{}).clientWidth||window.innerWidth||800;
+  const fcDtick = cw>=700?DAY : cw>=480?2*DAY : 7*DAY;
+  const fcLegend = cw>=560;
   const layout={
     paper_bgcolor:"rgba(0,0,0,0)", plot_bgcolor:"rgba(255,255,255,.022)",   // one ruled canvas across all days
     margin:FC_MARGIN, bargap:0.12, barmode:"stack",
     font:{color:"#8b92ad", family:'Segoe UI, system-ui, sans-serif', size:12},
-    xaxis:{type:"date", range:[axStart,axEnd], dtick:DAY, tickformat:"%-d", tickfont:{size:10},
+    xaxis:{type:"date", range:[axStart,axEnd], dtick:fcDtick, tickformat:"%-d", tickfont:{size:10},
       ticks:"outside", ticklen:3, tickcolor:"rgba(255,255,255,.12)",
       showgrid:true, gridcolor:"rgba(255,255,255,.045)", showline:true, linecolor:"rgba(255,255,255,.14)", mirror:true, fixedrange:true},
     yaxis:{range:[0,100], dtick:25, showticklabels:false,
       showgrid:true, gridcolor:"rgba(255,255,255,.07)", zeroline:false, showline:true, linecolor:"rgba(255,255,255,.14)", mirror:true, fixedrange:true},
-    showlegend:true, legend:{bgcolor:"rgba(0,0,0,0)", font:{size:11}, traceorder:"normal"},
+    showlegend:fcLegend, legend:{bgcolor:"rgba(0,0,0,0)", font:{size:11}, traceorder:"normal"},
     hovermode:"closest",
     shapes:[{type:"line", xref:"x", yref:"paper", x0:todayX, x1:todayX, y0:0, y1:1, line:{color:"rgba(245,197,66,.5)", width:1, dash:"dot"}}],
     annotations:[{x:midFuture, y:0.5, xref:"x", yref:"paper", text:"Matches to come — odds fill in daily", showarrow:false, font:{size:12,color:"#565d76"}}].concat(monthAnns),
@@ -1046,6 +1053,7 @@ function placeCrests(){
   const {days,today,M,ranked}=fcLast;
   const W=chart.clientWidth, H=chart.clientHeight;
   if(!W||!H){ host.innerHTML=""; return; }
+  const sz=Math.round(CREST_SIZE*(W<420?0.55:W<640?0.78:1));   // scale badges down on phones
   const plotL=FC_MARGIN.l, plotR=W-FC_MARGIN.r, plotT=FC_MARGIN.t, plotB=H-FC_MARGIN.b;
   const axStart=Date.parse(TOUR_START+"T00:00:00Z")-DAY/2, axEnd=Date.parse(TOUR_END+"T00:00:00Z")+DAY/2;
   const barRight=Date.parse(today+"T00:00:00Z")+0.44*DAY;     // right edge of the latest bar
@@ -1064,7 +1072,7 @@ function placeCrests(){
     const src=(typeof TEAM_IMG!=="undefined"&&TEAM_IMG[it.c])||"";
     const z=100+Math.round(it.share*5);   // higher win-share rendered on top
     const inner=src?`<img src="${src}" alt="${tname(it.c)}" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'fcx',textContent:'${flag(it.c)}'}))">`:`<span class="fcx">${flag(it.c)}</span>`;
-    return `<a class="fc-crest" href="#/team/${it.c}" title="${tname(it.c)} — ${it.share.toFixed(1)}% · open team" style="left:${xPix.toFixed(1)}px;top:${it.yPix.toFixed(1)}px;width:${CREST_SIZE}px;height:${CREST_SIZE}px;z-index:${z}">${inner}</a>`;
+    return `<a class="fc-crest" href="#/team/${it.c}" title="${tname(it.c)} — ${it.share.toFixed(1)}% · open team" style="left:${xPix.toFixed(1)}px;top:${it.yPix.toFixed(1)}px;width:${sz}px;height:${sz}px;z-index:${z}">${inner}</a>`;
   }).join("");
 }
 const DAY=86400000;
@@ -1435,8 +1443,11 @@ document.querySelectorAll("#p-pos button").forEach(b=>b.addEventListener("click"
   b.classList.add("active"); pFilter.pos=b.dataset.p; renderPlayers();
 }));
 
-// Keep crest badges placed on window resize.
-let _fcRz; window.addEventListener("resize",()=>{ clearTimeout(_fcRz); _fcRz=setTimeout(placeCrests,120); });
+// On resize/orientation change, re-render the chart on Odds (adapts ticks, legend,
+// badge size & positions); just reposition badges elsewhere.
+let _fcRz; window.addEventListener("resize",()=>{ clearTimeout(_fcRz); _fcRz=setTimeout(()=>{
+  if(document.body.getAttribute("data-view")==="odds" && fcTimeline) renderForecast(); else placeCrests();
+},150); });
 
 // Bar-colour mode toggle: Vibrant → Team → Complement.
 const _cm=$("#fc-colormode");
