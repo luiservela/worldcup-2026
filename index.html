@@ -355,7 +355,9 @@
   .fact-card .livetag{display:inline-block;font-size:9px;font-weight:800;letter-spacing:1px;color:var(--grn);border:1px solid rgba(25,195,125,.3);border-radius:6px;padding:2px 6px;margin-top:9px}
 </style>
 <script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
+<script src="schedule.js"></script>
 <script src="players.js"></script>
+<script src="images.js"></script>
 </head>
 <body>
 
@@ -563,26 +565,9 @@ const T = {
 };
 const GROUPS = "ABCDEFGHIJKL".split("");
 
-// Matches: [home, away, hs, as, status, stage, day, venue, kickoff]
-// status: up=upcoming, opener=opening match, live, fin.  hs/as null until played.
-const MATCHES = [
-  ["MEX","RSA",null,null,"opener","Group A","Thu 11 Jun","Estadio Azteca, Mexico City","19:00 GMT"],
-  ["KOR","CZE",null,null,"up","Group A","Thu 11 Jun","United States","02:00 GMT"],
-  ["CAN","BIH",null,null,"up","Group B","Fri 12 Jun","Toronto Stadium","19:00 GMT"],
-  ["USA","PAR",null,null,"up","Group D","Fri 12 Jun","Los Angeles Stadium","01:00 GMT"],
-  ["QAT","SUI",null,null,"up","Group B","Sat 13 Jun","San Francisco Bay Area","19:00 GMT"],
-  ["BRA","MAR",null,null,"up","Group C","Sat 13 Jun","New York / New Jersey","22:00 GMT"],
-  ["HAI","SCO",null,null,"up","Group C","Sat 13 Jun","Boston Stadium","01:00 GMT"],
-  ["AUS","TUR",null,null,"up","Group D","Sat 13 Jun","BC Place, Vancouver","04:00 GMT"],
-  ["GER","CUW",null,null,"up","Group E","Sun 14 Jun","Houston Stadium","17:00 GMT"],
-  ["NED","JPN",null,null,"up","Group F","Sun 14 Jun","Dallas Stadium","20:00 GMT"],
-  ["CIV","ECU",null,null,"up","Group E","Sun 14 Jun","Philadelphia Stadium","23:00 GMT"],
-  ["SWE","TUN",null,null,"up","Group F","Sun 14 Jun","Estadio Monterrey","02:00 GMT"],
-  ["ESP","CPV",null,null,"up","Group H","Mon 15 Jun","Atlanta Stadium","16:00 GMT"],
-  ["BEL","EGY",null,null,"up","Group G","Mon 15 Jun","BC Place, Vancouver","19:00 GMT"],
-  ["KSA","URU",null,null,"up","Group H","Mon 15 Jun","Miami Stadium","22:00 GMT"],
-  ["IRN","NZL",null,null,"up","Group G","Mon 15 Jun","Los Angeles Stadium","01:00 GMT"],
-];
+// MATCHES (72 group games), FIX (per-match UTC kickoff + venue) and KNOCKOUT
+// (32 bracket games) are now loaded from schedule.js — the full 104-match
+// schedule parsed from Wikipedia. Format: [hc,ac,hs,as,status,stage,"",venue,""].
 
 const NOTES = [
   "🥇 The first 48-team World Cup — up from 32 — with a record 104 matches.",
@@ -613,26 +598,32 @@ function computeStandings(){
 let mFilter={time:"all",team:""};
 function renderMatchList(){
   const P=probsNow();
-  let rows=MATCHES.map(m=>({m,utc:utcOf(m[0],m[1])}));
-  if(mFilter.team) rows=rows.filter(r=>r.m[0]===mFilter.team||r.m[1]===mFilter.team);
-  if(mFilter.time==="past")   rows=rows.filter(r=>r.m[2]!=null);
-  if(mFilter.time==="future") rows=rows.filter(r=>r.m[2]==null);
-  rows.sort((a,b)=>(a.utc||"9999").localeCompare(b.utc||"9999"));
+  // unify the 72 group games and the 32 knockout games into one chronological list
+  const rows=[];
+  for(const m of MATCHES) rows.push({utc:utcOf(m[0],m[1]),hc:m[0],ac:m[1],hs:m[2],as:m[3],st:m[4],stage:m[5],venue:m[7],ko:false});
+  if(typeof KNOCKOUT!=="undefined") for(const k of KNOCKOUT) rows.push({utc:k.utc,home:k.home,away:k.away,hs:null,as:null,stage:k.round,venue:k.venue,vid:k.vid,ko:true});
+  let list=rows;
+  if(mFilter.team) list=list.filter(r=>r.hc===mFilter.team||r.ac===mFilter.team);
+  if(mFilter.time==="past")   list=list.filter(r=>r.hs!=null);
+  if(mFilter.time==="future") list=list.filter(r=>r.hs==null);
+  list.sort((a,b)=>(a.utc||"9999").localeCompare(b.utc||"9999"));
   let html="", lastDay="";
-  for(const {m,utc} of rows){
-    const [h,a,hs,as,st,stage]=m, played=hs!=null;
-    const dayLbl = utc ? fmtZone(utc,LUX,{weekday:"long",day:"numeric",month:"short"}) : (m[6]||"TBD");
-    const timeLbl= utc ? fmtZone(utc,LUX,{hour:"2-digit",minute:"2-digit"}) : (m[8]||"");
+  for(const r of list){
+    const played=r.hs!=null;
+    const dayLbl = r.utc ? fmtZone(r.utc,LUX,{weekday:"long",day:"numeric",month:"short"}) : "TBD";
+    const timeLbl= r.utc ? fmtZone(r.utc,LUX,{hour:"2-digit",minute:"2-digit"}) : "";
     if(dayLbl!==lastDay){ html+=`<div class="daydiv">${dayLbl}</div>`; lastDay=dayLbl; }
-    const venue=venueOf(h,a)||m[7];
-    const sid=stadiumIdForVenue(venue);
-    const venueHtml = sid ? `<a href="#/stadium/${sid}">${venue}</a>` : venue;
-    const tline=(c,scr)=>`<div class="tline">${flagLink(c)}<span class="nm">${tname(c)}</span>`+
-      (played?`<span class="scr">${scr}</span>`:`<span class="pct" title="Chance to win the tournament">${P[c].toFixed(1)}%</span>`)+`</div>`;
+    const sid=r.vid||stadiumIdForVenue(r.venue);
+    const venueHtml = sid ? `<a href="#/stadium/${sid}">${r.venue}</a>` : r.venue;
+    const tline = r.ko
+      ? (label)=>`<div class="tline"><span class="flag" style="opacity:.5">🏳️</span><span class="nm" style="color:var(--muted)">${label}</span></div>`
+      : (c,scr)=>`<div class="tline">${flagLink(c)}<span class="nm">${tname(c)}</span>`+
+          (played?`<span class="scr">${scr}</span>`:`<span class="pct" title="Chance to win the tournament">${P[c].toFixed(1)}%</span>`)+`</div>`;
+    const teamsHtml = r.ko ? tline(r.home)+tline(r.away) : tline(r.hc,r.hs)+tline(r.ac,r.as);
     html+=`<div class="mrow">
-      <div class="when"><b>${timeLbl}</b><small>${utc?"Lux time":""}</small></div>
-      <div class="teams">${tline(h,hs)}${tline(a,as)}</div>
-      <div class="meta"><span class="stage">${stage}${st==="opener"?" · ⭐":st==="live"?" · ● LIVE":""}</span><span class="venue">📍 ${venueHtml}</span></div>
+      <div class="when"><b>${timeLbl}</b><small>${r.utc?"Lux time":""}</small></div>
+      <div class="teams">${teamsHtml}</div>
+      <div class="meta"><span class="stage">${r.stage}${r.st==="live"?" · ● LIVE":""}</span><span class="venue">📍 ${venueHtml}</span></div>
     </div>`;
   }
   $("#match-list").innerHTML=html||`<div class="empty-state"><div class="big">🔍</div><b>No matches</b><small>Try a different filter.</small></div>`;
@@ -971,25 +962,7 @@ document.querySelectorAll("#fc-presets button").forEach(b=>b.addEventListener("c
 // Click any flag to open that team's page.
 const flagLink=c=>`<a class="flaglink" href="#/team/${c}" title="${tname(c)}" aria-label="${tname(c)}">${flag(c)}</a>`;
 
-// Fixtures: real UTC kickoff + venue (from TheSportsDB), keyed "HOME-AWAY".
-const FIX={
-  "MEX-RSA":["2026-06-11T19:00:00Z","Estadio Azteca"],
-  "KOR-CZE":["2026-06-12T02:00:00Z","Estadio Akron"],
-  "CAN-BIH":["2026-06-12T19:00:00Z","BMO Field"],
-  "USA-PAR":["2026-06-13T01:00:00Z","SoFi Stadium"],
-  "QAT-SUI":["2026-06-13T19:00:00Z","Levi's Stadium"],
-  "BRA-MAR":["2026-06-13T22:00:00Z","MetLife Stadium"],
-  "HAI-SCO":["2026-06-14T01:00:00Z","Gillette Stadium"],
-  "AUS-TUR":["2026-06-14T04:00:00Z","BC Place"],
-  "GER-CUW":["2026-06-14T17:00:00Z","NRG Stadium"],
-  "NED-JPN":["2026-06-14T20:00:00Z","AT&T Stadium"],
-  "CIV-ECU":["2026-06-14T23:00:00Z","Lincoln Financial Field"],
-  "SWE-TUN":["2026-06-15T02:00:00Z","Estadio BBVA"],
-  "ESP-CPV":["2026-06-15T16:00:00Z","Mercedes-Benz Stadium"],
-  "BEL-EGY":["2026-06-15T19:00:00Z","Lumen Field"],
-  "KSA-URU":["2026-06-15T22:00:00Z","Hard Rock Stadium"],
-  "IRN-NZL":["2026-06-16T01:00:00Z","SoFi Stadium"],
-};
+// FIX (per-match UTC kickoff + venue) is loaded from schedule.js.
 const utcOf  =(h,a)=>(FIX[h+"-"+a]||[])[0]||null;
 const venueOf=(h,a)=>(FIX[h+"-"+a]||[])[1]||null;
 
@@ -1081,11 +1054,12 @@ function renderTeamDetail(code){
   if(!T[code]){ el.innerHTML=`<div class="empty-state"><div class="big">🏳️</div><b>Unknown team</b><small>No team with code “${code}”.</small></div>`; return; }
   const P=probsNow(), g=T[code][2], tbl=computeStandings();
   const ms=MATCHES.filter(m=>m[0]===code||m[1]===code);
+  const crest=(typeof TEAM_IMG!=="undefined"&&TEAM_IMG[code])||"";
   el.innerHTML=`
     <div class="detail-hero">
-      <div class="bigflag">${flag(code)}</div>
+      <div class="bigflag">${crest?`<img src="${crest}" alt="${tname(code)} crest" style="width:74px;height:74px;object-fit:contain" loading="lazy" onerror="this.parentNode.textContent='${flag(code)}'">`:flag(code)}</div>
       <div>
-        <h2>${tname(code)}</h2>
+        <h2>${tname(code)} ${flag(code)}</h2>
         <div class="dh-meta"><span>Group ${g}</span><span>${T[code][3]}</span></div>
       </div>
       <div class="dh-pct"><div class="v">${P[code].toFixed(1)}%</div><div class="k">Chance to win the cup</div></div>
@@ -1147,10 +1121,13 @@ function renderPlayers(){
 const COUNTRY_FLAG={USA:"🇺🇸",Canada:"🇨🇦",Mexico:"🇲🇽"};
 function renderStadiums(){
   $("#stadiums-count").textContent=`${STADIUMS.length} venues · 3 nations`;
+  const simg=typeof STADIUM_IMG!=="undefined"?STADIUM_IMG:{};
   $("#stadiums-grid").innerHTML=STADIUMS.map(s=>`
-    <a class="team-card" href="#/stadium/${s.id}" style="text-decoration:none;color:inherit">
-      <span class="grp">${COUNTRY_FLAG[s.country]||""} ${s.country}</span>
-      <div class="flag" style="font-size:38px">🏟️</div>
+    <a class="team-card" href="#/stadium/${s.id}" style="text-decoration:none;color:inherit;padding-top:0;overflow:hidden">
+      <span class="grp" style="z-index:2">${COUNTRY_FLAG[s.country]||""} ${s.country}</span>
+      ${simg[s.id]
+        ? `<img src="${simg[s.id]}" alt="" loading="lazy" style="width:calc(100% + 36px);height:110px;object-fit:cover;margin:0 -18px 12px;display:block" onerror="this.style.display='none'">`
+        : `<div class="flag" style="font-size:38px;margin-top:18px">🏟️</div>`}
       <div class="cname">${s.wcName||s.name}</div>
       <div class="meta">${s.city}${s.region&&s.region!==s.city?", "+s.region:""}</div>
       <span class="conf">${(s.capacity||0).toLocaleString()} seats</span>
@@ -1162,7 +1139,9 @@ function renderStadiumDetail(id){
   const local=fmtZone(new Date().toISOString(),s.tz,{weekday:"short",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"});
   const maps=`https://www.google.com/maps/dir/?api=1&destination=${s.lat},${s.lng}`;
   const here=MATCHES.filter(m=>{ const v=(venueOf(m[0],m[1])||"").toLowerCase(); return v && (v.includes(s.name.toLowerCase())||(s.wcName&&v.includes(s.wcName.toLowerCase()))); });
+  const photo=(typeof STADIUM_IMG!=="undefined"&&STADIUM_IMG[id])||"";
   el.innerHTML=`
+    ${photo?`<img class="std-photo" src="${photo}" alt="${s.name}" loading="lazy" onerror="this.style.display='none'"><div style="font-size:10px;color:var(--muted-2);margin:4px 2px 14px">📷 Photo: Wikimedia Commons</div>`:""}
     <div class="detail-hero">
       <div class="bigflag">🏟️</div>
       <div>
