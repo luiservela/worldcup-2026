@@ -1085,11 +1085,12 @@ async function loadPlayers(code){
 }
 
 /* ---- stadiums ---- */
+const COUNTRY_FLAG={USA:"🇺🇸",Canada:"🇨🇦",Mexico:"🇲🇽"};
 function renderStadiums(){
   $("#stadiums-count").textContent=`${STADIUMS.length} venues · 3 nations`;
   $("#stadiums-grid").innerHTML=STADIUMS.map(s=>`
     <a class="team-card" href="#/stadium/${s.id}" style="text-decoration:none;color:inherit">
-      <span class="grp">${s.country}</span>
+      <span class="grp">${COUNTRY_FLAG[s.country]||""} ${s.country}</span>
       <div class="flag" style="font-size:38px">🏟️</div>
       <div class="cname">${s.wcName||s.name}</div>
       <div class="meta">${s.city}${s.region&&s.region!==s.city?", "+s.region:""}</div>
@@ -1107,7 +1108,7 @@ function renderStadiumDetail(id){
       <div class="bigflag">🏟️</div>
       <div>
         <h2>${s.wcName||s.name}</h2>
-        <div class="dh-meta"><span>📍 ${s.city}, ${s.region} (${s.country})</span>${s.role?`<span>⭐ ${s.role}</span>`:""}</div>
+        <div class="dh-meta"><span>📍 ${s.city}, ${s.region} · ${COUNTRY_FLAG[s.country]||""} ${s.country}</span>${s.role?`<span>⭐ ${s.role}</span>`:""}</div>
         <div style="margin-top:7px;color:var(--muted);font-size:13px">🕒 Local time now: <b style="color:var(--txt)">${local}</b></div>
       </div>
     </div>
