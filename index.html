@@ -2,9 +2,11 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <title>FIFA World Cup 2026</title>
 <meta name="theme-color" content="#06070d" />
+<link rel="manifest" href="manifest.webmanifest" />
+<link rel="apple-touch-icon" href="assets/icon-180.png" />
 <meta name="description" content="World Cup 2026 hub: daily market-implied title odds for all 48 teams, full 104-match schedule, live group standings, every squad and all 16 stadiums." />
 <!-- Social cards: assets/og.png is regenerated daily by the odds-snapshot workflow -->
 <meta property="og:type" content="website" />
@@ -259,11 +261,19 @@
   .disclaimer{font-size:11px;color:var(--muted-2);background:rgba(46,123,255,.06);border:1px solid rgba(46,123,255,.18);padding:9px 14px;border-radius:10px;margin-top:16px;display:inline-flex;align-items:center;gap:8px;line-height:1.5}
   .disclaimer code{color:var(--gold)}
 
+  /* ---- phones: navigation becomes a fixed bottom tab bar (thumb zone) ---- */
   @media(max-width:720px){
-    .topbar-inner{flex-wrap:wrap;gap:12px}
-    nav.tabs{position:static;transform:none;order:3;width:100%;justify-content:space-between}
-    nav.tabs a{flex:1;text-align:center;padding:9px 6px}
-    .topbar-right{order:2}
+    nav.tabs{position:fixed;left:0;right:0;bottom:0;top:auto;transform:none;z-index:60;
+      border:none;border-top:1px solid var(--line);border-radius:0;
+      background:rgba(6,7,13,.94);backdrop-filter:blur(18px) saturate(140%);
+      justify-content:space-around;gap:2px;
+      padding:6px 6px calc(6px + env(safe-area-inset-bottom))}
+    nav.tabs a{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10px;font-weight:700;padding:5px 2px;letter-spacing:.2px}
+    nav.tabs a::before{content:attr(data-ico);font-size:18px;line-height:1}
+    nav.tabs a.active{box-shadow:none}
+    main{padding-bottom:calc(110px + env(safe-area-inset-bottom))}
+    .kick-dot{display:none}
+    .topbar .live-btn{padding:9px 12px;font-size:11px}
   }
   /* ---- mobile: groups table can scroll horizontally instead of overflowing ---- */
   .gscroll{overflow-x:auto}
@@ -312,12 +322,17 @@
   .fc-colorbtn:hover{color:var(--txt);border-color:var(--line-strong)}
   .fc-crest-ctl{display:inline-flex;align-items:center;gap:7px;font-size:11px;color:var(--muted-2)}
   .fc-crest-ctl input[type=range]{width:92px;accent-color:var(--gold)}
-  body[data-view="odds"] .fc-chart{height:calc(100vh - 156px);height:calc(100dvh - 156px)}
-  @media(max-width:640px){ body[data-view="odds"] .fc-chart{height:calc(100dvh - 210px)} }
-  /* "Today's movers" strip (visible only when the archive has ≥2 days): the chart
-     height calcs above get a .has-movers variant that subtracts the strip's 38px. */
-  body.has-movers[data-view="odds"] .fc-chart{height:calc(100vh - 194px);height:calc(100dvh - 194px)}
-  @media(max-width:640px){ body.has-movers[data-view="odds"] .fc-chart{height:calc(100dvh - 248px)} }
+  /* Flex column: the chart takes whatever height is left after the topbar,
+     toolbar and movers strip — at every width, however the toolbar wraps —
+     instead of a fixed-px calc that drifts out of sync. */
+  body[data-view="odds"]{height:100vh;height:100dvh;overflow:hidden;display:flex;flex-direction:column}
+  body[data-view="odds"] .topbar{flex:0 0 auto}
+  body[data-view="odds"] main{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
+  section.view.forecast-hero.active{display:flex;flex-direction:column;flex:1 1 auto;min-height:0}
+  .fc-bar,.fc-movers{flex:0 0 auto}
+  .fc-chart-wrap{flex:1 1 auto;min-height:0}
+  body[data-view="odds"] .fc-chart{height:100%}
+  @media(max-width:720px){ body[data-view="odds"] main{padding-bottom:calc(58px + env(safe-area-inset-bottom))} }
   .fc-movers{display:flex;align-items:center;gap:8px;padding:2px 2px 10px;overflow-x:auto;scrollbar-width:none;white-space:nowrap}
   .fc-movers::-webkit-scrollbar{display:none}
   .fc-movers[hidden]{display:none}
@@ -413,7 +428,8 @@
   .mrow .meta .venue{display:block;margin-top:3px}
   .mrow .meta .venue a{color:var(--muted-2);text-decoration:underline;text-decoration-color:rgba(255,255,255,.22)}
   .mrow .meta .venue a:hover{color:var(--gold)}
-  .daydiv{font-size:12px;font-weight:700;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin:20px 0 11px;display:flex;align-items:center;gap:12px}
+  .daydiv{font-size:12px;font-weight:700;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin:20px 0 11px;display:flex;align-items:center;gap:12px;
+    position:sticky;top:64px;z-index:5;background:linear-gradient(180deg,var(--bg) 78%,transparent);padding:6px 0}
   .daydiv::after{content:"";flex:1;height:1px;background:var(--line)}
   @media(max-width:560px){.mrow{grid-template-columns:1fr;gap:8px}.mrow .meta{text-align:left}.pct-note{margin-left:0}}
 
@@ -456,12 +472,10 @@
   .fact-card .n{font-size:11px;color:var(--muted-2);margin-top:6px;line-height:1.5}
   .fact-card .livetag{display:inline-block;font-size:9px;font-weight:800;letter-spacing:1px;color:var(--grn);border:1px solid rgba(25,195,125,.3);border-radius:6px;padding:2px 6px;margin-top:9px}
 </style>
-<script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
-<script src="schedule.js"></script>
-<script src="players.js"></script>
-<script src="images.js"></script>
-<script src="player-img.js"></script>
-<script src="history.js"></script>
+<!-- Plotly is deferred (the basic bundle is still ~1MB): the page paints and the
+     CSS fallback chart renders first; __plotlyReady upgrades it on arrival.
+     The data scripts moved to the end of <body> for the same reason. -->
+<script src="https://cdn.plot.ly/plotly-basic-2.35.2.min.js" charset="utf-8" defer onload="window.__plotlyReady&&window.__plotlyReady()"></script>
 </head>
 <body>
 
@@ -473,12 +487,12 @@
     </a>
     <span class="kick-dot"><i></i>MATCHDAY 1</span>
     <nav class="tabs" id="nav">
-      <a href="#/odds" data-view="odds">Odds</a>
-      <a href="#/matches" data-view="matches">Matches</a>
-      <a href="#/groups" data-view="groups">Groups</a>
-      <a href="#/teams" data-view="teams">Teams</a>
-      <a href="#/players" data-view="players">Players</a>
-      <a href="#/stadiums" data-view="stadiums">Stadiums</a>
+      <a href="#/odds" data-view="odds" data-ico="📊">Odds</a>
+      <a href="#/matches" data-view="matches" data-ico="⚽">Matches</a>
+      <a href="#/groups" data-view="groups" data-ico="🏆">Groups</a>
+      <a href="#/teams" data-view="teams" data-ico="🛡️">Teams</a>
+      <a href="#/players" data-view="players" data-ico="👤">Players</a>
+      <a href="#/stadiums" data-view="stadiums" data-ico="🏟️">Stadiums</a>
     </nav>
     <div class="topbar-right">
       <span class="update-status" id="update-status">Live scores</span>
@@ -529,6 +543,7 @@
     <div class="match-filters">
       <div class="seg" id="time-filter">
         <button data-f="all" class="active">All</button>
+        <button data-f="today">Today</button>
         <button data-f="future">Upcoming</button>
         <button data-f="past">Played</button>
       </div>
@@ -623,6 +638,13 @@
   <span class="disclaimer">ℹ️ Group standings update live from played results; the full 104-match schedule (group + knockout) is bundled, with knockout teams shown as bracket slots until they're decided.</span>
 </div>
 
+<!-- Data globals (moved out of <head> so first paint doesn't wait for them).
+     Classic scripts: they run in order, before the inline app script below. -->
+<script src="schedule.js"></script>
+<script src="players.js"></script>
+<script src="images.js"></script>
+<script src="player-img.js"></script>
+<script src="history.js"></script>
 <script>
 /* =========================================================================
    DATA — real 2026 FIFA World Cup draw (Dec 5, 2025) & Matchday-1 fixtures.
@@ -678,6 +700,7 @@ function renderMatchList(){
   if(mFilter.team) list=list.filter(r=>r.hc===mFilter.team||r.ac===mFilter.team);
   if(mFilter.time==="past")   list=list.filter(r=>r.hs!=null);
   if(mFilter.time==="future") list=list.filter(r=>r.hs==null);
+  if(mFilter.time==="today"){ const td=localDay(new Date().toISOString()); list=list.filter(r=>r.utc&&localDay(r.utc)===td); }
   list.sort((a,b)=>(a.utc||"9999").localeCompare(b.utc||"9999"));
   let html="", lastDay="";
   for(const r of list){
@@ -934,6 +957,7 @@ function updateColorBtn(){ const b=$("#fc-colormode"); if(b) b.textContent="🎨
 let fcTimeline=null;                 // {dates, series:{code:[...]}, live, single}
 let fcVisible=new Set();             // codes currently shown
 let fcSyncing=false, fcListenerReady=false;   // legend↔selection sync (re-normalize on toggle)
+let _fcTapC=null,_fcTapT=0;                   // two-tap "open team" state on touch screens
 const FC_MARGIN={l:6,r:14,t:10,b:52};         // must match the Plotly layout margins (for crest placement)
 let CREST_SIZE=66, fcLast=null;               // circular crest badges: adjustable size + last render data
 const fcTitle=c=>`${flag(c)} ${tname(c)}`;
@@ -1088,6 +1112,14 @@ function renderForecast(tl){
   const gd=document.getElementById("fc-chart");
   if(gd && !fcListenerReady && gd.on){
     fcListenerReady=true;
+    // Click/tap a bar segment → that team's page. On touch (no hover) the first
+    // tap shows the tooltip, the second tap within 4s opens the page.
+    gd.on("plotly_click",ev=>{
+      const p=ev.points&&ev.points[0], c=p&&p.data&&p.data.meta; if(!c) return;
+      const touch=window.matchMedia&&window.matchMedia("(hover:none)").matches;
+      if(!touch || (_fcTapC===c && Date.now()-_fcTapT<4000)) location.hash="#/team/"+c;
+      else { _fcTapC=c; _fcTapT=Date.now(); }
+    });
     gd.on("plotly_restyle", ()=>{
       if(fcSyncing) return;
       const vis=new Set(); (gd.data||[]).forEach(t=>{ if(t.visible===true) vis.add(t.meta); });
@@ -1318,6 +1350,7 @@ const venueOf=(h,a)=>(FIX[h+"-"+a]||[])[1]||null;
 // like "CEST" / "GMT-6" for the UI.
 const LOCAL_TZ=(()=>{ try{ return Intl.DateTimeFormat().resolvedOptions().timeZone||"UTC"; }catch(e){ return "UTC"; } })();
 const TZ_BADGE=(()=>{ try{ const p=new Intl.DateTimeFormat("en-GB",{timeZone:LOCAL_TZ,timeZoneName:"short"}).formatToParts(new Date()).find(x=>x.type==="timeZoneName"); return p?p.value:"local"; }catch(e){ return "local"; } })();
+const localDay=iso=>fmtZone(iso,LOCAL_TZ,{year:"numeric",month:"2-digit",day:"2-digit"});   // calendar day in the viewer's tz
 function fmtZone(iso,tz,opts){ try{ return new Intl.DateTimeFormat("en-GB",Object.assign({timeZone:tz,hour12:false},opts)).format(new Date(iso)); }catch(e){ return ""; } }
 
 // Current normalized win-the-cup probabilities (live if loaded, else seed).
@@ -1618,7 +1651,25 @@ extractCrestColors(()=>{ if(FC_COLORMODE!=="vibrant") renderForecast(); });
 // Tell visitors which timezone match times are shown in.
 const _mh=$("#matches-hint"); if(_mh) _mh.textContent=`All 104 fixtures · times in your time zone (${TZ_BADGE})`;
 
-renderMovers();   // before route(): sets .has-movers, which the chart height depends on
+// Phones land on "Today" (when there are matches today) — the dominant intent
+// mid-tournament is "what's on right now", and 104 fixtures is a long scroll.
+(()=>{ if(window.innerWidth>720) return;
+  const td=localDay(new Date().toISOString());
+  const any=[...MATCHES.map(m=>utcOf(m[0],m[1])), ...(typeof KNOCKOUT!=="undefined"?KNOCKOUT:[]).map(k=>k.utc)]
+    .some(u=>u&&localDay(u)===td);
+  if(any){ mFilter.time="today"; document.querySelectorAll("#time-filter button").forEach(b=>b.classList.toggle("active",b.dataset.f==="today")); }
+})();
+
+// Plotly is a deferred <script>: if it lands after init, upgrade the CSS
+// fallback to the real chart (no-op when it was already there at init).
+window.__plotlyReady=()=>{ if(fcTimeline) renderForecast(); };
+
+// Installable + offline: every data file ships in the repo, so caching the
+// static assets makes the whole app work offline. sw.js is network-first for
+// same-origin files, so fresh deploys still win.
+if("serviceWorker" in navigator){ try{ navigator.serviceWorker.register("sw.js").catch(()=>{}); }catch(e){} }
+
+renderMovers();   // before route(): the odds flex layout sizes around the strip
 route();
 loadForecast();
 </script>
