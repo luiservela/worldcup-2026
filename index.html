@@ -805,6 +805,7 @@ const COLOR={};
 
 let fcTimeline=null;                 // {dates, series:{code:[...]}, live, single}
 let fcVisible=new Set();             // codes currently shown
+let fcSyncing=false, fcListenerReady=false;   // legend↔selection sync (re-normalize on toggle)
 const fcTitle=c=>`${flag(c)} ${tname(c)}`;
 const lastOf=a=>a&&a.length?a[a.length-1]:0;
 
@@ -882,7 +883,9 @@ function applyPreset(p){
 const TOUR_START="2026-06-11", TOUR_END="2026-07-19";
 function tournamentDays(){ const out=[]; const d=new Date(TOUR_START+"T00:00:00Z"), end=new Date(TOUR_END+"T00:00:00Z"); while(d<=end){ out.push(d.toISOString().slice(0,10)); d.setUTCDate(d.getUTCDate()+1);} return out; }
 // Per-day normalized win-probability. Past/today = real data (colored); future = null (blank/grey).
-function dailyMatrix(){
+// Per-day matrix normalized over the SELECTED teams, so the visible stack always
+// sums to 100% (pick 3 teams → those 3 fill the chart, ratio preserved).
+function dailyMatrix(visible){
   const days=tournamentDays(), today=new Date().toISOString().slice(0,10);
   const live=fcTimeline&&fcTimeline.live, M={}; ALL_CODES.forEach(c=>M[c]=[]);
   for(const day of days){
@@ -890,8 +893,9 @@ function dailyMatrix(){
     const raw={};
     if(live){ ALL_CODES.forEach(c=>{ const s=fcTimeline.series[c], ds=fcTimeline.dates; let v=0; for(let i=0;i<ds.length;i++){ if(ds[i]<=day) v=s[i]; else break; } raw[c]=Math.max(0,v); }); }
     else { ALL_CODES.forEach(c=>raw[c]=(SEED[c]||0)/100); }
-    const sum=Object.values(raw).reduce((a,b)=>a+b,0)||1;
-    ALL_CODES.forEach(c=>M[c].push(raw[c]/sum*100));
+    let sum=0; for(const c of ALL_CODES){ if(visible.has(c)) sum+=raw[c]; }
+    sum=sum||1;
+    ALL_CODES.forEach(c=>M[c].push(visible.has(c)?raw[c]/sum*100:0));
   }
   return {days,today,M};
 }
@@ -901,7 +905,7 @@ function renderForecast(tl){
   const ranked=fcRankedCodes(fcTimeline);
   if(typeof Plotly==="undefined"){ return renderFallback(fcTimeline,ranked); }
   $("#fc-fallback").style.display="none"; $("#fc-chart").style.display="block";
-  const {days,today,M}=dailyMatrix();
+  const {days,today,M}=dailyMatrix(fcVisible);
   const traces=ranked.map(c=>({
     type:"bar", x:days, y:M[c], name:fcTitle(c),
     marker:{color:COLOR[c], line:{width:0}}, visible:fcVisible.has(c)?true:"legendonly", meta:c,
@@ -943,6 +947,19 @@ function renderForecast(tl){
   };
   Plotly.react("fc-chart", traces, layout, {displayModeBar:false, responsive:true});
   const dl=$("#fc-teamlist"); if(dl) dl.innerHTML=ranked.map(c=>`<option value="${tname(c)}">`).join("");
+  // Toggling teams via the legend changes the selection → re-normalize to 100%.
+  const gd=document.getElementById("fc-chart");
+  if(gd && !fcListenerReady && gd.on){
+    fcListenerReady=true;
+    gd.on("plotly_restyle", ()=>{
+      if(fcSyncing) return;
+      const vis=new Set(); (gd.data||[]).forEach(t=>{ if(t.visible===true) vis.add(t.meta); });
+      if(vis.size===fcVisible.size && [...vis].every(c=>fcVisible.has(c))) return;   // no real change
+      fcVisible=vis;
+      document.querySelectorAll("#fc-presets button").forEach(b=>b.classList.remove("active"));
+      fcSyncing=true; renderForecast(); fcSyncing=false;
+    });
+  }
 }
 
 function renderFallback(tl,ranked){
