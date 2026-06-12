@@ -214,6 +214,12 @@
   #teams-grid .card-crest{height:auto;max-height:160px;max-width:100%}
   #teams-grid .cname{font-size:15px;margin-top:12px}
   #teams-grid .meta{font-size:11px}
+  @media(max-width:600px){
+    #teams-grid{grid-template-columns:repeat(2,1fr);gap:12px}
+    #teams-grid .team-card .flag{min-height:100px;font-size:64px}
+    #teams-grid .card-crest{max-height:100px}
+    #teams-grid .cname{font-size:14px}
+  }
   .team-card .cname{font-weight:800;font-size:16px;margin-top:14px}
   .team-card .meta{font-size:12px;color:var(--muted);margin-top:4px}
   .team-card .grp{position:absolute;top:14px;right:14px;font-size:10px;font-weight:800;letter-spacing:1px;color:var(--muted-2);border:1px solid var(--line);padding:3px 8px;border-radius:7px}
@@ -1283,7 +1289,7 @@ function playerCard(code,r){ return `<a class="pcard" href="#/player/${r._id}" t
     <div class="pmeta"><span class="ppos ${r.p}">${r.p||"?"}</span><span class="page">${ageFrom(r.dob)||"–"}y</span>${r.c!=null?`<span>${r.c} caps</span>`:""}</div>
   </a>`; }
 function teamSquadHtml(code){
-  const sq=(PLAYERS[code]||[]).slice().sort((a,b)=>(a.n||99)-(b.n||99));
+  const sq=(PLAYERS[code]||[]).slice().sort((a,b)=>(b.c||0)-(a.c||0)||(a.n||99)-(b.n||99));   // most caps first
   if(!sq.length) return '<div class="psub">Squad not available.</div>';
   return `<div class="players-page-grid">${sq.map(r=>playerCard(code,r)).join("")}</div>`;
 }
