@@ -205,6 +205,15 @@
   .team-card:hover{transform:translateY(-3px);border-color:var(--line-strong);box-shadow:var(--shadow)}
   .team-card .flag{font-size:46px;line-height:1;filter:drop-shadow(0 4px 8px rgba(0,0,0,.5));min-height:54px;display:flex;align-items:center;justify-content:center}
   .team-card .card-crest{height:54px;width:auto;max-width:78px;object-fit:contain;display:block}
+  /* Teams grid: big crests, no card chrome (scoped so the Stadiums grid is untouched) */
+  #teams-grid{grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:18px}
+  #teams-grid .team-card{background:none;border:none;box-shadow:none;overflow:visible;padding:12px 8px;text-align:center}
+  #teams-grid .team-card:hover{transform:scale(1.06);box-shadow:none;border-color:transparent}
+  #teams-grid .team-card .grp,#teams-grid .team-card .conf{display:none}
+  #teams-grid .team-card .flag{min-height:160px;font-size:104px;filter:drop-shadow(0 8px 16px rgba(0,0,0,.55))}
+  #teams-grid .card-crest{height:auto;max-height:160px;max-width:100%}
+  #teams-grid .cname{font-size:15px;margin-top:12px}
+  #teams-grid .meta{font-size:11px}
   .team-card .cname{font-weight:800;font-size:16px;margin-top:14px}
   .team-card .meta{font-size:12px;color:var(--muted);margin-top:4px}
   .team-card .grp{position:absolute;top:14px;right:14px;font-size:10px;font-weight:800;letter-spacing:1px;color:var(--muted-2);border:1px solid var(--line);padding:3px 8px;border-radius:7px}
