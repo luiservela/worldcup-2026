@@ -839,12 +839,14 @@ function dominantColor(data){
   const o=buckets[best];
   return { h:best, s:Math.min(.85,Math.max(.5,o.s/o.n)), l:Math.min(.62,Math.max(.46,o.l/o.n)) };
 }
+const _crestCbs=[];
 function extractCrestColors(cb){
   if(crestColorsReady){ cb&&cb(); return; }
+  if(cb) _crestCbs.push(cb);
   if(crestColorsLoading){ return; } crestColorsLoading=true;
   const codes=ALL_CODES.filter(c=>typeof TEAM_IMG!=="undefined"&&TEAM_IMG[c]);
   const cv=document.createElement("canvas"); cv.width=cv.height=24; const ctx=cv.getContext("2d",{willReadFrequently:true});
-  let done=0; const finish=()=>{ if(++done>=codes.length){ crestColorsReady=true; cb&&cb(); } };
+  let done=0; const finish=()=>{ if(++done>=codes.length){ crestColorsReady=true; _crestCbs.splice(0).forEach(f=>f()); } };
   codes.forEach(c=>{ const img=new Image();
     img.onload=()=>{ try{ ctx.clearRect(0,0,24,24); ctx.drawImage(img,0,0,24,24); CREST_COLOR[c]=dominantColor(ctx.getImageData(0,0,24,24).data); }catch(e){} finish(); };
     img.onerror=finish; img.src=TEAM_IMG[c]; });
