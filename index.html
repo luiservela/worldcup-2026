@@ -448,8 +448,9 @@
 <section class="view forecast-hero active" data-view="odds">
   <div class="fc-bar">
     <div class="fc-presets" id="fc-presets">
+      <button data-preset="top3">Top 3</button>
       <button data-preset="top5" class="active">Top 5</button>
-      <button data-preset="contenders">Favorites</button>
+      <button data-preset="top10">Top 10</button>
       <button data-preset="all">All</button>
     </div>
     <input id="fc-search" placeholder="🔍 Find a team…" list="fc-teamlist" autocomplete="off" />
@@ -888,9 +889,10 @@ function applyPreset(p){
   const ranked=fcRankedCodes(fcTimeline);
   fcVisible=new Set();
   if(p==="all") ranked.forEach(c=>fcVisible.add(c));
-  else if(p==="top5") ranked.slice(0,5).forEach(c=>fcVisible.add(c));
-  else if(p==="contenders") ranked.slice(0,TOP_N).forEach(c=>fcVisible.add(c));
-  // "clear" -> none
+  else if(p==="top3")  ranked.slice(0,3).forEach(c=>fcVisible.add(c));
+  else if(p==="top5")  ranked.slice(0,5).forEach(c=>fcVisible.add(c));
+  else if(p==="top10") ranked.slice(0,10).forEach(c=>fcVisible.add(c));
+  else if(p==="contenders") ranked.slice(0,TOP_N).forEach(c=>fcVisible.add(c));  // legacy alias
   document.querySelectorAll("#fc-presets button").forEach(b=>b.classList.toggle("active",b.dataset.preset===p));
   renderForecast(fcTimeline);
 }
