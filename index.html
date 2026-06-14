@@ -702,7 +702,7 @@ function renderMatchList(){
     const koLabel=(lbl)=>lbl.replace(/Group ([A-L])/g,(m,g)=>groupLink(g,m));
     const labelTline=(label)=>`<div class="tline"><span class="flag" style="opacity:.5">🏳️</span><span class="nm" style="color:var(--muted)">${koLabel(label)}</span></div>`;
     const codedTline=(c,scr,pct)=>`<a class="tline" href="#/team/${c}"><span class="flag">${flag(c)}</span><span class="nm">${tname(c)}</span>`+
-          (live   ? (scr!=null?`<span class="scr live-scr">${scr}</span>`:"")+(pct!=null?`<span class="modd" title="${oTip}">${pct}%</span>`:"")
+          (live   ? `<span class="scr live-scr">${scr!=null?scr:0}</span>`+(pct!=null?`<span class="modd" title="${oTip}">${pct}%</span>`:"")  // live: always a score (0 until a goal/feed update) + odds
         : played  ? `<span class="scr">${scr}</span>`
         : (pct!=null ? `<span class="modd" title="${oTip}">${pct}%</span>` : ""))+`</a>`;
     const teamsHtml = coded ? codedTline(r.hc,r.hs,hPct)+codedTline(r.ac,r.as,aPct) : labelTline(r.home)+labelTline(r.away);
@@ -1314,7 +1314,7 @@ function groupTable(g,tbl,hi){
 function matchMiniRow(o){
   const {hc,ac,hs,as,utc}=o, live=isLiveMatch(o), played=hs!=null;
   const when=utc?fmtZone(utc,LOCAL_TZ,{weekday:"short",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}):"TBD";
-  const mid=played?`${hs}–${as}`:"v";
+  const mid=(played||live)?`${hs!=null?hs:0}–${as!=null?as:0}`:"v";   // live with no committed goals → 0–0
   return `<div style="display:flex;align-items:center;gap:9px;padding:8px 0;border-top:1px solid var(--line);font-size:13px${live?";background:rgba(25,195,125,.06);border-radius:8px;padding-left:6px;padding-right:6px":""}">
     <span style="color:var(--muted-2);width:150px;flex:0 0 auto;font-size:11px">${when}${o.round?` · ${o.round}`:""}${live?` <span class="livebadge"><i></i>LIVE</span>`:""}</span>
     ${flagLink(hc)}<a class="lnk" href="#/team/${hc}" style="font-weight:600;flex:1">${tname(hc)}</a>
