@@ -8,8 +8,10 @@
      and the big Plotly bundle is the main repeat-visit cost.
    Only successful (or opaque cross-origin) responses are cached — a transient
    404/500 must never become the permanent offline copy.
-   Bump VER on breaking changes to drop old caches. */
-const VER = "wc26-v1";
+   Bump VER on breaking changes (or to force-flush every client's stale cache,
+   which is what v2 does — earlier builds shipped under v1 and could keep
+   serving a day-old schedule.js). */
+const VER = "wc26-v2";
 const CORE = ["./", "index.html", "schedule.js", "players.js", "images.js",
               "player-img.js", "history.js", "manifest.webmanifest"];
 

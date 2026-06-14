@@ -9,8 +9,8 @@ deployed on GitHub Pages, with its data kept current by automated jobs.
 
 ## What it does
 
-A dark, glassy interface with a sticky banner (emblem · centered nav · always-visible
-**Update Scores** button) and a hash-routed set of pages:
+A dark, glassy interface with a sticky banner (emblem · centered nav · a live/next-kickoff
+status chip) and a hash-routed set of pages:
 
 - **Odds** (landing) — the hero. A daily **stacked-bar chart of win-probability** for
   all 48 nations, spanning kickoff (11 Jun) → final (19 Jul). Each day's stack is
@@ -47,11 +47,12 @@ two GitHub Actions keep fresh:
 
 Because everything is baked into the repo (and git keeps every dated commit), the site
 stays fully browsable **after the tournament**, even once the live feeds disappear.
-The **Update Scores** button additionally pulls live scores from TheSportsDB.
+Scores refresh automatically: an hourly GitHub Action re-scrapes Wikipedia into
+`schedule.js`, so results stay current with **zero runtime API dependency**.
 
 Data provenance: Polymarket (odds), Wikipedia (schedule, squads, photos — CC via
-Wikimedia Commons), TheSportsDB (live scores, original crests). Crests are self-hosted;
-stadium/player photos are hotlinked from durable Wikimedia.
+Wikimedia Commons, and the source for results), TheSportsDB (original crests). Crests
+are self-hosted; stadium/player photos are hotlinked from durable Wikimedia.
 
 ## Run it
 

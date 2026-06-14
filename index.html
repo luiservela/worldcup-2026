@@ -82,10 +82,6 @@
   .brand b{font-size:16px}
   .brand span{display:block;font-size:10px;letter-spacing:3px;color:var(--muted);font-weight:600;margin-top:1px}
   nav.tabs{display:flex;gap:4px;background:rgba(255,255,255,.04);padding:5px;border-radius:13px;border:1px solid var(--line);position:absolute;left:50%;transform:translateX(-50%)}
-  .topbar-right{margin-left:auto;display:flex;align-items:center;gap:10px;min-width:0}
-  .topbar-right .update-status{max-width:230px;font-size:11px;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .topbar .live-btn{padding:10px 17px;font-size:12px}
-  @media(max-width:980px){.topbar-right .update-status{display:none}}
   nav.tabs button{
     font-family:inherit;font-size:13px;font-weight:600;color:var(--muted);
     background:none;border:none;cursor:pointer;padding:9px 16px;border-radius:9px;transition:.18s;letter-spacing:.3px;
@@ -134,42 +130,7 @@
   .section-head h2 .bar{width:5px;height:26px;border-radius:3px;background:linear-gradient(var(--gold),var(--red))}
   .section-head .hint{font-size:13px;color:var(--muted-2)}
 
-  /* ---------- Live update button ---------- */
-  .live-controls{display:flex;align-items:center;gap:14px;flex-wrap:wrap;justify-content:flex-end}
-  .live-btn{
-    display:inline-flex;align-items:center;gap:9px;font-family:inherit;font-size:13px;font-weight:800;
-    letter-spacing:.5px;color:#1a0e00;cursor:pointer;border:none;padding:13px 22px;border-radius:13px;
-    background:linear-gradient(120deg,var(--gold),#ffb02e 52%,var(--red));text-transform:uppercase;
-    transition:.18s;position:relative;animation:glow 2.6s ease-in-out infinite;
-    box-shadow:0 8px 26px -6px rgba(245,197,66,.55),0 0 0 1px rgba(255,255,255,.16) inset;
-  }
-  .live-btn:hover{transform:translateY(-2px);filter:brightness(1.07)}
-  .live-btn:active{transform:translateY(0)}
-  .live-btn:disabled{cursor:progress;filter:saturate(.55) brightness(.92);animation:none;color:#3a3122}
-  .live-btn .ref-ic{width:17px;height:17px}
-  .live-btn.loading .ref-ic{animation:spin .8s linear infinite}
   @keyframes spin{to{transform:rotate(360deg)}}
-  @keyframes glow{
-    0%,100%{box-shadow:0 8px 26px -6px rgba(245,197,66,.5),0 0 0 1px rgba(255,255,255,.16) inset}
-    50%{box-shadow:0 12px 36px -4px rgba(232,37,74,.6),0 0 0 1px rgba(255,255,255,.22) inset}
-  }
-  .update-status{font-size:12px;color:var(--muted);max-width:340px;text-align:right;line-height:1.45}
-  .update-status.ok{color:var(--grn)}
-  .update-status.err{color:#ff8a5c}
-  .update-status.work{color:var(--gold)}
-  @media(max-width:640px){.live-controls{justify-content:flex-start}.update-status{text-align:left}}
-  /* Toast — the topbar status text is hidden ≤980px, so the Update-Scores
-     button had no visible feedback on phones. The toast guarantees feedback
-     at every width; it sits above the bottom tab bar on mobile. */
-  .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(10px);
-    max-width:min(92vw,520px);z-index:200;padding:11px 16px;border-radius:12px;font-size:13px;font-weight:600;line-height:1.4;
-    background:rgba(16,19,31,.97);color:var(--txt);border:1px solid var(--line-strong);box-shadow:0 14px 34px -10px rgba(0,0,0,.65);
-    opacity:0;pointer-events:none;transition:opacity .2s ease,transform .2s ease;text-align:center}
-  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
-  .toast.ok{border-color:rgba(25,195,125,.55)}
-  .toast.err{border-color:rgba(255,138,92,.55)}
-  .toast.work{border-color:rgba(245,197,66,.55)}
-  @media(max-width:720px){ .toast{bottom:calc(78px + env(safe-area-inset-bottom))} }
   .panel{display:none}
   .panel.active{display:block;animation:fade .4s ease}
   @keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
@@ -289,7 +250,6 @@
     .topbar nav.tabs a.active{box-shadow:none}
     main{padding-bottom:calc(110px + env(safe-area-inset-bottom))}
     .kick-dot{display:none}
-    .topbar .live-btn{padding:9px 12px;font-size:11px}
   }
   /* ---- mobile: groups table can scroll horizontally instead of overflowing ---- */
   .gscroll{overflow-x:auto}
@@ -515,7 +475,7 @@
       <img class="crest-img" src="https://upload.wikimedia.org/wikipedia/en/thumb/1/17/2026_FIFA_World_Cup_emblem.svg/330px-2026_FIFA_World_Cup_emblem.svg.png" alt="FIFA World Cup 26" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'crest'}))" />
       <span><b>WORLD CUP</b><span>UNITED 2026</span></span>
     </a>
-    <span class="kick-dot"><i></i>MATCHDAY 1</span>
+    <span class="kick-dot" id="kick-dot"><i></i>GROUP STAGE</span>
     <nav class="tabs" id="nav">
       <a href="#/odds" data-view="odds" data-ico="📊">Odds</a>
       <a href="#/matches" data-view="matches" data-ico="⚽">Matches</a>
@@ -524,13 +484,6 @@
       <a href="#/players" data-view="players" data-ico="👤">Players</a>
       <a href="#/stadiums" data-view="stadiums" data-ico="🏟️">Stadiums</a>
     </nav>
-    <div class="topbar-right">
-      <span class="update-status" id="update-status">Live scores</span>
-      <button id="live-btn" class="live-btn" onclick="updateLive()">
-        <svg class="ref-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
-        Update Scores Live
-      </button>
-    </div>
   </div>
 </header>
 
@@ -668,7 +621,6 @@
   <span class="disclaimer">ℹ️ Group standings update live from played results; the full 104-match schedule (group + knockout) is bundled, with knockout teams shown as bracket slots until they're decided.</span>
 </div>
 
-<div id="toast" class="toast" role="status" aria-live="polite"></div>
 
 <!-- Data globals (moved out of <head> so first paint doesn't wait for them).
      Classic scripts: they run in order, before the inline app script below. -->
@@ -806,125 +758,12 @@ function renderTeams(){
 
 /* renderStats() was replaced by renderNerd() — see the SPA module below. */
 
-/* ===================== LIVE UPDATE =====================
-   Pulls real fixtures/scores from TheSportsDB (free, CORS-enabled) and merges
-   them into MATCHES, then recomputes standings & stats. Shows real data only —
-   if the feed has no results for a fixture yet, it says so (never invents one).
-   Swap the key '3' below for your own TheSportsDB key for higher rate limits.   */
-const LIVE_CFG = {
-  base:"https://www.thesportsdb.com/api/v1/json/3",
-  worldCupLeagueId:"4429",   // FIFA World Cup
-  season:"2026",
-  // yesterday / today / tomorrow (UTC), computed per call — follows the
-  // tournament instead of a fixed list, and stays right in long-lived tabs.
-  dates(){ const out=[], d=new Date(Date.now()-86400000); for(let i=0;i<3;i++){ out.push(d.toISOString().slice(0,10)); d.setUTCDate(d.getUTCDate()+1); } return out; },
-};
-
-// Map live-feed team names -> our internal codes
-const ALIASES = {
- "mexico":"MEX","south africa":"RSA","korea republic":"KOR","south korea":"KOR","czech republic":"CZE","czechia":"CZE",
- "canada":"CAN","bosnia and herzegovina":"BIH","bosnia":"BIH","qatar":"QAT","switzerland":"SUI",
- "brazil":"BRA","morocco":"MAR","haiti":"HAI","scotland":"SCO",
- "united states":"USA","usa":"USA","paraguay":"PAR","australia":"AUS","turkey":"TUR","turkiye":"TUR","türkiye":"TUR",
- "germany":"GER","curacao":"CUW","curaçao":"CUW","cote d'ivoire":"CIV","ivory coast":"CIV","côte d'ivoire":"CIV","ecuador":"ECU",
- "netherlands":"NED","japan":"JPN","sweden":"SWE","tunisia":"TUN",
- "belgium":"BEL","egypt":"EGY","iran":"IRN","new zealand":"NZL",
- "spain":"ESP","cape verde":"CPV","cabo verde":"CPV","saudi arabia":"KSA","uruguay":"URU",
- "france":"FRA","senegal":"SEN","iraq":"IRQ","norway":"NOR",
- "argentina":"ARG","algeria":"ALG","austria":"AUT","jordan":"JOR",
- "portugal":"POR","dr congo":"COD","congo dr":"COD","democratic republic of congo":"COD","uzbekistan":"UZB","colombia":"COL",
- "england":"ENG","croatia":"CRO","ghana":"GHA","panama":"PAN",
-};
-function codeOf(name){
-  if(!name) return null;
-  const n=name.trim().toLowerCase();
-  if(ALIASES[n]) return ALIASES[n];
-  for(const k in ALIASES){ if(n.includes(k)||k.includes(n)) return ALIASES[k]; }
-  return null;
-}
-function setStatus(msg,cls){
-  const e=$("#update-status"); if(e){ e.textContent=msg; e.className="update-status"+(cls?" "+cls:""); }
-  showToast(msg,cls);   // the topbar status is hidden ≤980px — the toast is the feedback users actually see
-}
-let _toastT=0;
-function showToast(msg,cls){
-  const t=$("#toast"); if(!t) return;
-  clearTimeout(_toastT);
-  t.textContent=msg; t.className="toast show"+(cls?" "+cls:"");
-  const dur = cls==="work" ? 0 : (cls==="err" ? 6500 : 4000);   // "work" stays until the next status replaces it
-  if(dur) _toastT=setTimeout(()=>{ t.className="toast"+(cls?" "+cls:""); }, dur);
-}
-
-async function fetchEvents(light){
-  const c=LIVE_CFG;
-  // light mode (auto-sync polling): live scores are by definition today's —
-  // one request instead of four spares the rate-limited free key.
-  const urls= light ? [] : [`${c.base}/eventsseason.php?id=${c.worldCupLeagueId}&s=${c.season}`];
-  for(const d of (light?[new Date().toISOString().slice(0,10)]:c.dates())) urls.push(`${c.base}/eventsday.php?d=${d}&l=FIFA%20World%20Cup`);
-  const events=[], seen=new Set(); let reached=false, rateLimited=false;
-  for(const u of urls){
-    try{
-      const r=await fetch(u);
-      if(r.status===429){ rateLimited=true; continue; }   // TheSportsDB free tier throttle
-      if(!r.ok) continue;
-      reached=true;                                        // at least one real HTTP response arrived
-      const j=await r.json();
-      if(j && Array.isArray(j.events)) for(const ev of j.events){
-        const id=ev.idEvent||`${ev.strHomeTeam}|${ev.strAwayTeam}|${ev.dateEvent}`;
-        if(seen.has(id)) continue;                         // season + day endpoints overlap — dedupe
-        seen.add(id); events.push(ev);
-      }
-    }catch(e){/* network/CORS error on this url — reached stays false unless another succeeds */}
-  }
-  return {events, reached, rateLimited};
-}
-
-function mergeEvents(events){
-  let updated=0, live=0;
-  for(const ev of events){
-    const hc=codeOf(ev.strHomeTeam), ac=codeOf(ev.strAwayTeam);
-    if(!hc||!ac) continue;
-    const hs=ev.intHomeScore, as=ev.intAwayScore;
-    if(hs==null||hs===""||as==null||as==="") continue;        // no result posted -> leave as upcoming
-    const status=(ev.strStatus||"").toLowerCase();
-    const isLive=/playing|1st|2nd|half|live|in.?play/.test(status);
-    for(const m of MATCHES){
-      if(m[0]===hc && m[1]===ac){ m[2]=+hs; m[3]=+as; m[4]=isLive?"live":"fin"; updated++; if(isLive)live++; break; }
-      if(m[0]===ac && m[1]===hc){ m[2]=+as; m[3]=+hs; m[4]=isLive?"live":"fin"; updated++; if(isLive)live++; break; }
-    }
-  }
-  return {updated,live};
-}
-
-async function updateLive(auto){
-  auto=auto===true;   // onclick may pass an event object
-  // Auto-sync is silent unless something actually changed — only a manual
-  // button press narrates progress/errors in the topbar status.
-  const say=(m,c)=>{ if(!auto||c==="ok") setStatus(m,c); };
-  const btn=$("#live-btn");
-  btn.disabled=true; btn.classList.add("loading");
-  say("Fetching live scores from the feed…","work");
-  try{
-    const {events,reached,rateLimited}=await fetchEvents(auto);
-    const {updated,live}= events.length ? mergeEvents(events) : {updated:0,live:0};
-    if(updated){
-      renderMatchList(); renderGroups();   // re-render only on real change
-      say(`✓ Synced ${updated} match${updated>1?"es":""}${live?` · ${live} live now`:""} · standings refreshed`,"ok");
-    }else if(rateLimited){
-      say("The free live-score feed is rate-limited right now. Give it a minute and try again.","err");
-    }else if(!reached){
-      say("Couldn't reach the live-score feed — it may be offline, blocked, or not allowing browser access (CORS).","err");
-    }else if(!events.length){
-      say("Connected to the feed, but it has no World Cup fixtures listed for now.","err");
-    }else{
-      say(`Reached the feed (${events.length} fixtures) but no scores are posted yet — check back once games kick off.`,"err");
-    }
-  }catch(e){
-    say("Couldn't reach the live feed (offline or blocked). Reconnect and retry, or add your own API key.","err");
-  }finally{
-    btn.disabled=false; btn.classList.remove("loading");
-  }
-}
+/* Scores & results are OWNED data: the results-snapshot GitHub Action refreshes
+   schedule.js from Wikipedia on a schedule and commits it, so the site renders
+   fresh results with zero runtime API dependency. (A former "Update Scores"
+   button hit TheSportsDB live from the browser — removed: it was rate-limited,
+   CORS-fragile, and duplicated the reliable server-side pipeline.) Liveness is
+   still shown via isLiveMatch(), which uses committed kickoff times + the clock. */
 
 /* Navigation is hash-routed — see the SPA router at the bottom of this script. */
 
@@ -1747,19 +1586,23 @@ renderMovers();   // before route(): the odds flex layout sizes around the strip
 route();
 loadForecast();
 
-// While any match is inside its play window, sync live scores automatically
-// (on arrival + every 2 min) so the green aura carries a real score — the
-// "Update Scores Live" button still works manually at any time.
-function anyLiveWindow(){
-  try{
-    return MATCHES.some(m=>isLiveMatch({st:m[4],utc:utcOf(m[0],m[1])}))
-        || (typeof KNOCKOUT!=="undefined" && KNOCKOUT.some(k=>k.hc&&k.ac&&isLiveMatch(k)));
-  }catch(e){ return false; }
+// Topbar status chip: reflects real state (live now / next kickoff) from the
+// committed schedule + clock — no network, refreshed each minute. Replaces the
+// old hardcoded "MATCHDAY 1" so the page never looks stale.
+function refreshKickDot(){
+  const el=$("#kick-dot"); if(!el) return;
+  const all=[
+    ...MATCHES.map(m=>({hc:m[0],ac:m[1],st:m[4],utc:utcOf(m[0],m[1])})),
+    ...(typeof KNOCKOUT!=="undefined"?KNOCKOUT.filter(k=>k.hc&&k.ac):[]),
+  ].filter(r=>r.utc);
+  const liveNow=all.filter(isLiveMatch);
+  if(liveNow.length){ el.innerHTML=`<i></i>● LIVE NOW${liveNow.length>1?` · ${liveNow.length}`:""}`; return; }
+  const now=Date.now();
+  const next=all.filter(r=>Date.parse(r.utc)>now).sort((a,b)=>a.utc.localeCompare(b.utc))[0];
+  el.innerHTML= next ? `<i></i>NEXT · ${fmtZone(next.utc,LOCAL_TZ,{weekday:"short",hour:"2-digit",minute:"2-digit"})}` : `<i></i>GROUP STAGE`;
 }
-if(anyLiveWindow()){
-  updateLive(true);
-  setInterval(()=>{ if(anyLiveWindow()) updateLive(true); }, 120000);
-}
+refreshKickDot();
+setInterval(refreshKickDot, 60000);
 </script>
 </body>
 </html>

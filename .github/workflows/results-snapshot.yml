@@ -5,7 +5,7 @@ name: Results snapshot
 # even if the live score feed goes away.
 on:
   schedule:
-    - cron: "30 */3 * * *"   # every 3 hours, offset 30m from the odds job
+    - cron: "20 * * * *"   # hourly at :20 — keep committed scores fresh during the tournament
   workflow_dispatch: {}
 
 permissions:
