@@ -74,8 +74,9 @@ tz), `SEED`/`TOKENS` (Polymarket fallback snapshot + token ids), `FEATURE_COLORS
 ### Automation (`.github/workflows/`)
 - **`odds-snapshot.yml`** — cron daily 06:00 UTC → `odds-snapshot.mjs`, then re-renders
   `assets/og.png` (`og-image.py`); commits as `wc26-odds-bot`.
-- **`results-snapshot.yml`** — cron every 3h (offset :30) → `results-snapshot.mjs`,
+- **`results-snapshot.yml`** — cron **hourly** (at :20) → `results-snapshot.mjs`,
   commits as `wc26-results-bot` (rebase-before-push to avoid racing the odds bot).
+  This is the **sole** score-refresh path: there is no client-side live feed.
 - Both declare `permissions: contents: write` (works even though the repo's default
   workflow token is read-only). These keep the data fresh with **zero runtime API
   dependency** — the site renders from the committed files, so it survives the live
@@ -119,6 +120,9 @@ tz), `SEED`/`TOKENS` (Polymarket fallback snapshot + token ids), `FEATURE_COLORS
 - **Wikipedia** — schedule, squads, player & stadium photos. Schedule/results are
   *owned* (regenerated into `schedule.js`); photos are hotlinked from Wikimedia Commons
   (CC) except **crests, which are self-hosted** in `assets/crests/`.
-- **TheSportsDB** (free key `3`) — live scores via the "Update Scores" button
-  (`updateLive`) and the original crest source. Free tier rate-limits (HTTP 1015) and
-  caps `lookup_all_players` at 10/team — hence squads come from Wikipedia.
+- **TheSportsDB** (free key `3`) — was the original crest source. A client-side
+  "Update Scores" button that pulled live scores from it was **removed**: the free
+  tier is rate-limited (HTTP 1015) and CORS-fragile, and it duplicated the owned
+  results pipeline. Scores now come **only** from `results-snapshot.yml` →
+  `schedule.js`; liveness is shown by `isLiveMatch()` (committed kickoff + clock).
+  Squads come from Wikipedia (the free tier caps `lookup_all_players` at 10/team).
