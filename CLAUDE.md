@@ -23,8 +23,14 @@ Groups, Teams, Players and Stadiums pages with detail views.
   them). Plotly is the only external lib (CDN) — the **basic** bundle, loaded with
   `defer`; `window.__plotlyReady` upgrades the CSS fallback chart when it arrives.
 - **PWA:** `manifest.webmanifest` + `sw.js` (network-first same-origin, cache-first
-  CDN) make the site installable and offline-capable. On phones (≤720px) the nav
-  becomes a fixed bottom tab bar.
+  CDN, but the live-score host `site.api.espn.com` is never cached) make the site
+  installable and offline-capable. On phones (≤720px) the nav becomes a fixed
+  bottom tab bar. Bump `VER` in `sw.js` to flush every client's cache.
+- **Live score overlay:** committed `schedule.js` is the durable record; on top of
+  it a fail-safe client overlay fetches the current score from ESPN's CORS-open,
+  key-less soccer scoreboard during/just-after matches (`syncLiveScores` →
+  `applyLiveScores`, mutating MATCHES/KNOCKOUT, status from ESPN's in-progress/final
+  state). Any network/CORS/shape problem is swallowed and committed data stands.
 - **Conventions inside index.html:** every flag links to `#/team/<CODE>` (`flagLink`);
   every player card links to `#/player/<id>` (`playerCard`); `.lnk`/`teamLink`/
   `stadiumLink`/`groupLink` make mentions navigable. Match times render in the
@@ -120,9 +126,11 @@ tz), `SEED`/`TOKENS` (Polymarket fallback snapshot + token ids), `FEATURE_COLORS
 - **Wikipedia** — schedule, squads, player & stadium photos. Schedule/results are
   *owned* (regenerated into `schedule.js`); photos are hotlinked from Wikimedia Commons
   (CC) except **crests, which are self-hosted** in `assets/crests/`.
+- **ESPN** (`site.api.espn.com/.../soccer/fifa.world/scoreboard`, CORS-open, no key)
+  — the **live score overlay**: current scores during/after matches, overlaid on the
+  committed data (fail-safe — see Architecture). This is the near-real-time path;
+  `results-snapshot.yml` → `schedule.js` is the durable hourly record underneath.
 - **TheSportsDB** (free key `3`) — was the original crest source. A client-side
-  "Update Scores" button that pulled live scores from it was **removed**: the free
-  tier is rate-limited (HTTP 1015) and CORS-fragile, and it duplicated the owned
-  results pipeline. Scores now come **only** from `results-snapshot.yml` →
-  `schedule.js`; liveness is shown by `isLiveMatch()` (committed kickoff + clock).
-  Squads come from Wikipedia (the free tier caps `lookup_all_players` at 10/team).
+  "Update Scores" button that pulled live scores from it was **removed** (rate-limited
+  HTTP 1015, CORS-fragile); ESPN replaced it as the live source. Squads come from
+  Wikipedia (the free tier caps `lookup_all_players` at 10/team).
