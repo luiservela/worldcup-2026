@@ -158,6 +158,18 @@
   .update-status.err{color:#ff8a5c}
   .update-status.work{color:var(--gold)}
   @media(max-width:640px){.live-controls{justify-content:flex-start}.update-status{text-align:left}}
+  /* Toast — the topbar status text is hidden ≤980px, so the Update-Scores
+     button had no visible feedback on phones. The toast guarantees feedback
+     at every width; it sits above the bottom tab bar on mobile. */
+  .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(10px);
+    max-width:min(92vw,520px);z-index:200;padding:11px 16px;border-radius:12px;font-size:13px;font-weight:600;line-height:1.4;
+    background:rgba(16,19,31,.97);color:var(--txt);border:1px solid var(--line-strong);box-shadow:0 14px 34px -10px rgba(0,0,0,.65);
+    opacity:0;pointer-events:none;transition:opacity .2s ease,transform .2s ease;text-align:center}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  .toast.ok{border-color:rgba(25,195,125,.55)}
+  .toast.err{border-color:rgba(255,138,92,.55)}
+  .toast.work{border-color:rgba(245,197,66,.55)}
+  @media(max-width:720px){ .toast{bottom:calc(78px + env(safe-area-inset-bottom))} }
   .panel{display:none}
   .panel.active{display:block;animation:fade .4s ease}
   @keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
@@ -656,6 +668,8 @@
   <span class="disclaimer">ℹ️ Group standings update live from played results; the full 104-match schedule (group + knockout) is bundled, with knockout teams shown as bracket slots until they're decided.</span>
 </div>
 
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
 <!-- Data globals (moved out of <head> so first paint doesn't wait for them).
      Classic scripts: they run in order, before the inline app script below. -->
 <script src="schedule.js"></script>
@@ -828,7 +842,18 @@ function codeOf(name){
   for(const k in ALIASES){ if(n.includes(k)||k.includes(n)) return ALIASES[k]; }
   return null;
 }
-function setStatus(msg,cls){ const e=$("#update-status"); e.textContent=msg; e.className="update-status"+(cls?" "+cls:""); }
+function setStatus(msg,cls){
+  const e=$("#update-status"); if(e){ e.textContent=msg; e.className="update-status"+(cls?" "+cls:""); }
+  showToast(msg,cls);   // the topbar status is hidden ≤980px — the toast is the feedback users actually see
+}
+let _toastT=0;
+function showToast(msg,cls){
+  const t=$("#toast"); if(!t) return;
+  clearTimeout(_toastT);
+  t.textContent=msg; t.className="toast show"+(cls?" "+cls:"");
+  const dur = cls==="work" ? 0 : (cls==="err" ? 6500 : 4000);   // "work" stays until the next status replaces it
+  if(dur) _toastT=setTimeout(()=>{ t.className="toast"+(cls?" "+cls:""); }, dur);
+}
 
 async function fetchEvents(light){
   const c=LIVE_CFG;
@@ -836,16 +861,22 @@ async function fetchEvents(light){
   // one request instead of four spares the rate-limited free key.
   const urls= light ? [] : [`${c.base}/eventsseason.php?id=${c.worldCupLeagueId}&s=${c.season}`];
   for(const d of (light?[new Date().toISOString().slice(0,10)]:c.dates())) urls.push(`${c.base}/eventsday.php?d=${d}&l=FIFA%20World%20Cup`);
-  const events=[];
+  const events=[], seen=new Set(); let reached=false, rateLimited=false;
   for(const u of urls){
     try{
       const r=await fetch(u);
+      if(r.status===429){ rateLimited=true; continue; }   // TheSportsDB free tier throttle
       if(!r.ok) continue;
+      reached=true;                                        // at least one real HTTP response arrived
       const j=await r.json();
-      if(j && j.events) events.push(...j.events);
-    }catch(e){/* skip this url, try the rest */}
+      if(j && Array.isArray(j.events)) for(const ev of j.events){
+        const id=ev.idEvent||`${ev.strHomeTeam}|${ev.strAwayTeam}|${ev.dateEvent}`;
+        if(seen.has(id)) continue;                         // season + day endpoints overlap — dedupe
+        seen.add(id); events.push(ev);
+      }
+    }catch(e){/* network/CORS error on this url — reached stays false unless another succeeds */}
   }
-  return events;
+  return {events, reached, rateLimited};
 }
 
 function mergeEvents(events){
@@ -874,17 +905,19 @@ async function updateLive(auto){
   btn.disabled=true; btn.classList.add("loading");
   say("Fetching live scores from the feed…","work");
   try{
-    const events=await fetchEvents(auto);
-    if(!events.length){
-      say("Reached the source but it returned no World Cup events yet. Try again once games are under way.","err");
+    const {events,reached,rateLimited}=await fetchEvents(auto);
+    const {updated,live}= events.length ? mergeEvents(events) : {updated:0,live:0};
+    if(updated){
+      renderMatchList(); renderGroups();   // re-render only on real change
+      say(`✓ Synced ${updated} match${updated>1?"es":""}${live?` · ${live} live now`:""} · standings refreshed`,"ok");
+    }else if(rateLimited){
+      say("The free live-score feed is rate-limited right now. Give it a minute and try again.","err");
+    }else if(!reached){
+      say("Couldn't reach the live-score feed — it may be offline, blocked, or not allowing browser access (CORS).","err");
+    }else if(!events.length){
+      say("Connected to the feed, but it has no World Cup fixtures listed for now.","err");
     }else{
-      const {updated,live}=mergeEvents(events);
-      if(updated){
-        renderMatchList(); renderGroups();   // re-render only on real change
-        say(`✓ Synced ${updated} match${updated>1?"es":""}${live?` · ${live} live now`:""} · standings & stats refreshed`,"ok");
-      }else{
-        say(`Connected — ${events.length} events found, but no results are posted for these fixtures yet.`,"err");
-      }
+      say(`Reached the feed (${events.length} fixtures) but no scores are posted yet — check back once games kick off.`,"err");
     }
   }catch(e){
     say("Couldn't reach the live feed (offline or blocked). Reconnect and retry, or add your own API key.","err");
