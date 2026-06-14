@@ -9,9 +9,9 @@
    Only successful (or opaque cross-origin) responses are cached — a transient
    404/500 must never become the permanent offline copy.
    Bump VER on breaking changes (or to force-flush every client's stale cache,
-   which is what v2 does — earlier builds shipped under v1 and could keep
+   which is what v2 did — earlier builds shipped under v1 and could keep
    serving a day-old schedule.js). */
-const VER = "wc26-v2";
+const VER = "wc26-v3";
 const CORE = ["./", "index.html", "schedule.js", "players.js", "images.js",
               "player-img.js", "history.js", "manifest.webmanifest"];
 
@@ -29,6 +29,9 @@ self.addEventListener("fetch", e => {
   const req = e.request;
   if (req.method !== "GET") return;
   const url = new URL(req.url);
+  // Live score feed must never be cached — always hit the network so scores
+  // are current. Leaving respondWith unset lets the browser fetch it normally.
+  if (url.hostname === "site.api.espn.com") return;
   if (url.origin === location.origin) {
     const key = url.origin + url.pathname;          // strip query → one cache entry per file
     e.respondWith(

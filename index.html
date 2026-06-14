@@ -759,11 +759,118 @@ function renderTeams(){
 /* renderStats() was replaced by renderNerd() — see the SPA module below. */
 
 /* Scores & results are OWNED data: the results-snapshot GitHub Action refreshes
-   schedule.js from Wikipedia on a schedule and commits it, so the site renders
-   fresh results with zero runtime API dependency. (A former "Update Scores"
-   button hit TheSportsDB live from the browser — removed: it was rate-limited,
-   CORS-fragile, and duplicated the reliable server-side pipeline.) Liveness is
-   still shown via isLiveMatch(), which uses committed kickoff times + the clock. */
+   schedule.js from Wikipedia hourly and commits it, so the site always has a
+   durable record with no hard runtime dependency. On top of that, a LIVE SCORE
+   OVERLAY (below) pulls the current score from ESPN during/just-after matches so
+   scores feel live instead of lagging the Wikipedia→Action→deploy pipeline. */
+
+/* =========================================================================
+   LIVE SCORE OVERLAY  (hybrid: committed data + a live source)
+   ESPN's public soccer scoreboard is CORS-open and key-less. During or just
+   after a match we fetch the current score and overlay it on MATCHES/KNOCKOUT,
+   using ESPN's own in-progress/final state (so a mid-match score is shown as
+   LIVE, not frozen as final). Fully FAIL-SAFE: any network/CORS/shape problem
+   is swallowed and the committed schedule.js simply stands — same as if this
+   module weren't here. The service worker is told never to cache this host.
+   ========================================================================= */
+const ESPN_SCOREBOARD="https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard";
+// ESPN team name/abbreviation → our 3-letter code (names normalized first).
+const ESPN_ALIASES={
+  "mexico":"MEX","south africa":"RSA","korea republic":"KOR","south korea":"KOR","czechia":"CZE","czech republic":"CZE",
+  "canada":"CAN","bosnia and herzegovina":"BIH","bosnia herzegovina":"BIH","qatar":"QAT","switzerland":"SUI",
+  "brazil":"BRA","morocco":"MAR","haiti":"HAI","scotland":"SCO",
+  "united states":"USA","usa":"USA","paraguay":"PAR","australia":"AUS","turkiye":"TUR","turkey":"TUR",
+  "germany":"GER","curacao":"CUW","cote divoire":"CIV","ivory coast":"CIV","ecuador":"ECU",
+  "netherlands":"NED","japan":"JPN","sweden":"SWE","tunisia":"TUN",
+  "belgium":"BEL","egypt":"EGY","iran":"IRN","ir iran":"IRN","new zealand":"NZL",
+  "spain":"ESP","cape verde":"CPV","cabo verde":"CPV","saudi arabia":"KSA","uruguay":"URU",
+  "france":"FRA","senegal":"SEN","iraq":"IRQ","norway":"NOR",
+  "argentina":"ARG","algeria":"ALG","austria":"AUT","jordan":"JOR",
+  "portugal":"POR","dr congo":"COD","congo dr":"COD","democratic republic of the congo":"COD","uzbekistan":"UZB","colombia":"COL",
+  "england":"ENG","croatia":"CRO","ghana":"GHA","panama":"PAN",
+};
+const _norm=s=>(s||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z ]/g,"").replace(/\s+/g," ").trim();
+function espnCode(team){
+  if(!team) return null;
+  for(const k of [team.displayName,team.shortDisplayName,team.name,team.location]){
+    const n=_norm(k); if(n&&ESPN_ALIASES[n]) return ESPN_ALIASES[n];
+  }
+  for(const k of [team.displayName,team.shortDisplayName,team.name]){      // match our own names
+    const n=_norm(k); if(!n) continue;
+    for(const code of ALL_CODES){ if(_norm(tname(code))===n) return code; }
+  }
+  const ab=(team.abbreviation||"").toUpperCase();                          // last resort
+  if(ab.length===3 && T[ab]) return ab;
+  return null;
+}
+function espnDates(){ // yesterday/today/tomorrow UTC as YYYYMMDD (covers late kickoffs)
+  const out=[], d=new Date(Date.now()-86400000);
+  for(let i=0;i<3;i++){ out.push(d.toISOString().slice(0,10).replace(/-/g,"")); d.setUTCDate(d.getUTCDate()+1); }
+  return out;
+}
+async function fetchLiveScores(){
+  const seen=new Set(), evs=[];
+  for(const day of espnDates()){
+    try{
+      const r=await fetch(`${ESPN_SCOREBOARD}?dates=${day}`,{cache:"no-store"});
+      if(!r.ok) continue;
+      const j=await r.json();
+      for(const ev of (j&&j.events||[])) if(ev&&ev.id&&!seen.has(ev.id)){ seen.add(ev.id); evs.push(ev); }
+    }catch(e){/* CORS/network/shape on this day — ignore */}
+  }
+  return evs;
+}
+// Overlay ESPN scores onto committed MATCHES/KNOCKOUT. Returns true if anything changed.
+function applyLiveScores(events){
+  let changed=false;
+  for(const ev of events){
+    const comp=ev.competitions&&ev.competitions[0]; if(!comp) continue;
+    const cs=comp.competitors||[];
+    const home=cs.find(c=>c.homeAway==="home"), away=cs.find(c=>c.homeAway==="away");
+    if(!home||!away) continue;
+    const stObj=(ev.status&&ev.status.type)||(comp.status&&comp.status.type)||{};
+    if(stObj.state!=="in" && stObj.state!=="post") continue;          // not started → nothing to overlay
+    const hc=espnCode(home.team), ac=espnCode(away.team);
+    if(!hc||!ac) continue;
+    const hs=parseInt(home.score,10), as=parseInt(away.score,10);
+    if(!Number.isFinite(hs)||!Number.isFinite(as)) continue;
+    const st = stObj.state==="post" ? "fin" : "live";
+    for(const m of MATCHES){
+      if(m[0]===hc&&m[1]===ac){ if(m[2]!==hs||m[3]!==as||m[4]!==st){ m[2]=hs;m[3]=as;m[4]=st;changed=true; } break; }
+      if(m[0]===ac&&m[1]===hc){ if(m[2]!==as||m[3]!==hs||m[4]!==st){ m[2]=as;m[3]=hs;m[4]=st;changed=true; } break; }
+    }
+    if(typeof KNOCKOUT!=="undefined") for(const k of KNOCKOUT){
+      if(!k.hc||!k.ac) continue;
+      if(k.hc===hc&&k.ac===ac){ if(k.hs!==hs||k.as!==as){ k.hs=hs;k.as=as;changed=true; } break; }
+      if(k.hc===ac&&k.ac===hc){ if(k.hs!==as||k.as!==hs){ k.hs=as;k.as=hs;changed=true; } break; }
+    }
+  }
+  return changed;
+}
+function rerenderForScores(){
+  const v=document.body.getAttribute("data-view");
+  const param=(location.hash||"").replace(/^#\/?/,"").split("/")[1];
+  try{
+    if(v==="matches") renderMatchList();
+    else if(v==="groups") renderGroups();
+    else if(v==="team" && param) renderTeamDetail(param);
+    else if(v==="stadium" && param) renderStadiumDetail(param);
+  }catch(e){}
+  try{ refreshKickDot(); }catch(e){}
+}
+async function syncLiveScores(){
+  try{ const events=await fetchLiveScores(); if(events.length && applyLiveScores(events)) rerenderForScores(); }
+  catch(e){/* fully fail-safe — committed data stands */}
+}
+// Poll only when a match is in (or ~15min before) its window; idle otherwise.
+function liveNear(){
+  try{
+    return [
+      ...MATCHES.map(m=>({utc:utcOf(m[0],m[1]),st:m[4]})),
+      ...(typeof KNOCKOUT!=="undefined"?KNOCKOUT.filter(k=>k.hc&&k.ac):[]),
+    ].some(r=>{ if(!r.utc) return false; const t=Date.parse(r.utc),n=Date.now(); return isLiveMatch(r)||(t>n&&t-n<15*60000); });
+  }catch(e){ return false; }
+}
 
 /* Navigation is hash-routed — see the SPA router at the bottom of this script. */
 
@@ -1603,6 +1710,12 @@ function refreshKickDot(){
 }
 refreshKickDot();
 setInterval(refreshKickDot, 60000);
+
+// Live score overlay: correct any stale committed score immediately on load,
+// then keep live matches current every 45s while one is in/near its window.
+syncLiveScores();
+setInterval(()=>{ if(liveNear()) syncLiveScores(); }, 45000);
+
 </script>
 </body>
 </html>
