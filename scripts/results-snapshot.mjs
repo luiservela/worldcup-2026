@@ -15,7 +15,38 @@ const NAMECODE = {
   "Iraq":"IRQ","Norway":"NOR","Algeria":"ALG","Argentina":"ARG","Austria":"AUT","Jordan":"JOR","Colombia":"COL",
   "DR Congo":"COD","Portugal":"POR","Uzbekistan":"UZB","Croatia":"CRO","England":"ENG","Ghana":"GHA","Panama":"PAN",
 };
-const VID = {"Estadio Azteca":"estadio-azteca","Estadio Akron":"estadio-akron","Estadio BBVA":"estadio-bbva","BMO Field":"bmo-field","BC Place":"bc-place","Mercedes-Benz Stadium":"mercedes-benz-stadium","Gillette Stadium":"gillette-stadium","AT&T Stadium":"att-stadium","NRG Stadium":"nrg-stadium","Arrowhead Stadium":"arrowhead-stadium","SoFi Stadium":"sofi-stadium","Hard Rock Stadium":"hard-rock-stadium","MetLife Stadium":"metlife-stadium","Lincoln Financial Field":"lincoln-financial-field","Levi's Stadium":"levis-stadium","Lumen Field":"lumen-field"};
+// Venue → stadium id. Matched tolerantly against each venue's official name,
+// its World-Cup-branded name, and its city (normalized), so a Wikipedia label
+// change ("NRG Stadium" ↔ "Houston Stadium") can't break the resolve. A miss is
+// NON-FATAL: the venue id only links to the stadium page (the app re-derives it
+// from the venue string anyway), so it must never block committing fresh scores.
+const STAD = [
+  ["estadio-azteca","Estadio Azteca","Estadio Ciudad de México","Mexico City"],
+  ["estadio-akron","Estadio Akron","Estadio Guadalajara","Guadalajara"],
+  ["estadio-bbva","Estadio BBVA","Estadio Monterrey","Monterrey"],
+  ["bmo-field","BMO Field","Toronto Stadium","Toronto"],
+  ["bc-place","BC Place","Vancouver Stadium","Vancouver"],
+  ["mercedes-benz-stadium","Mercedes-Benz Stadium","Atlanta Stadium","Atlanta"],
+  ["gillette-stadium","Gillette Stadium","Boston Stadium","Foxborough"],
+  ["att-stadium","AT&T Stadium","Dallas Stadium","Arlington"],
+  ["nrg-stadium","NRG Stadium","Houston Stadium","Houston"],
+  ["arrowhead-stadium","Arrowhead Stadium","Kansas City Stadium","Kansas City"],
+  ["sofi-stadium","SoFi Stadium","Los Angeles Stadium","Inglewood"],
+  ["hard-rock-stadium","Hard Rock Stadium","Miami Stadium","Miami Gardens"],
+  ["metlife-stadium","MetLife Stadium","New York New Jersey Stadium","East Rutherford"],
+  ["lincoln-financial-field","Lincoln Financial Field","Philadelphia Stadium","Philadelphia"],
+  ["levis-stadium","Levi's Stadium","San Francisco Bay Area Stadium","Santa Clara"],
+  ["lumen-field","Lumen Field","Seattle Stadium","Seattle"],
+];
+const vnorm = s => (s||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z0-9 ]/g,"").replace(/\s+/g," ").trim();
+function vidOf(venue){
+  const v = vnorm(venue); if(!v) return "";
+  for(const [id,name,wc] of STAD){                              // official or WC-branded name
+    for(const cand of [name,wc]){ const c=vnorm(cand); if(c && (v===c || v.includes(c) || c.includes(v))) return id; }
+  }
+  for(const [id,,,city] of STAD){ const c=vnorm(city); if(c && v.includes(c)) return id; }   // city fallback
+  return "";
+}
 const DAY = 86400000;
 const strip = s => (s||"").replace(/<[^>]+>/g,"").replace(/\s+/g," ").trim();
 const decode = s => (s||"").replace(/&amp;/g,"&").replace(/&#160;/g," ").replace(/&#0?39;/g,"'").replace(/&#8217;/g,"’").replace(/&quot;/g,'"');
@@ -55,7 +86,7 @@ for(const b0 of html.split('class="footballbox"').slice(1)){
   const hc=NAMECODE[home], ac=NAMECODE[away];
   const sc=/(\d+)\s*[–-]\s*(\d+)/.exec(scell);
   const hs=sc?+sc[1]:null, as=sc?+sc[2]:null;
-  const rec={utc,hc,ac,home,away,venue,vid:VID[venue]||"",stage,hs,as};
+  const rec={utc,hc,ac,home,away,venue,vid:vidOf(venue),stage,hs,as};
   (hc&&ac&&/^Group /.test(stage) ? group : knock).push(rec);
 }
 
@@ -64,7 +95,9 @@ const fail=m=>{ console.error("ABORT:",m); process.exit(1); };
 if(group.length!==72) fail(`expected 72 group matches, got ${group.length}`);
 if(knock.length!==32) fail(`expected 32 knockout matches, got ${knock.length}`);
 if([...group,...knock].some(m=>!m.utc)) fail("a match is missing a UTC kickoff");
-if([...group,...knock].some(m=>!m.vid)) fail("a match is missing a venue id");
+// Venue id is non-fatal (cosmetic link only) — warn but never block fresh scores.
+const noVid=[...group,...knock].filter(m=>!m.vid);
+if(noVid.length) console.warn(`WARN: ${noVid.length} match(es) without a resolved venue id — kept; the app re-derives from the venue name. Unmatched: ${[...new Set(noVid.map(m=>m.venue||"(empty)"))].join(" | ")}`);
 
 group.sort((a,b)=>a.utc.localeCompare(b.utc));
 knock.sort((a,b)=>a.utc.localeCompare(b.utc));
