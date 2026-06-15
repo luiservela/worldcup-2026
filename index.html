@@ -465,7 +465,7 @@
 <!-- Plotly is deferred (the basic bundle is still ~1MB): the page paints and the
      CSS fallback chart renders first; __plotlyReady upgrades it on arrival.
      The data scripts moved to the end of <body> for the same reason. -->
-<script src="https://cdn.plot.ly/plotly-basic-2.35.2.min.js" charset="utf-8" defer onload="window.__plotlyReady&&window.__plotlyReady()"></script>
+<script src="https://cdn.plot.ly/plotly-basic-2.35.2.min.js" charset="utf-8" defer integrity="sha384-wQ3lfCxuvLfhHGiSdHF5+e3NZ1zNwEMd8/nII+K7VKChF9llO/OwOcn/aVRkB7az" crossorigin="anonymous" onload="window.__plotlyReady&&window.__plotlyReady()"></script>
 </head>
 <body>
 
@@ -625,10 +625,11 @@
 <!-- Data globals (moved out of <head> so first paint doesn't wait for them).
      Classic scripts: they run in order, before the inline app script below. -->
 <script src="schedule.js"></script>
-<script src="players.js"></script>
 <script src="images.js"></script>
-<script src="player-img.js"></script>
 <script src="history.js"></script>
+<!-- 264KB of player data is only needed on players/teams routes, never the landing chart → defer + re-render on arrival -->
+<script src="players.js" defer onload="window.__dataReady&&window.__dataReady()"></script>
+<script src="player-img.js" defer onload="window.__dataReady&&window.__dataReady()"></script>
 <script>
 /* =========================================================================
    DATA — real 2026 FIFA World Cup draw (Dec 5, 2025) & Matchday-1 fixtures.
@@ -1324,8 +1325,13 @@ function renderMovers(){
 const flagLink=c=>`<a class="flaglink" href="#/team/${c}" title="${tname(c)}" aria-label="${tname(c)}">${flag(c)}</a>`;
 
 // Give every player a stable id for #/player/<id> and index them for lookup.
-const PLAYER_BY_ID={};
-if(typeof PLAYERS!=="undefined") for(const code in PLAYERS) PLAYERS[code].forEach((r,i)=>{ r._id=code+"-"+(r.n!=null?r.n:"i"+i); r._code=code; PLAYER_BY_ID[r._id]={code,r,i}; });
+// Lazy — players.js is deferred, so build on first use (and on its onload re-render).
+const PLAYER_BY_ID={}; let _playerIndexed=false;
+function ensurePlayers(){
+  if(_playerIndexed || typeof PLAYERS==="undefined") return;
+  _playerIndexed=true;
+  for(const code in PLAYERS) PLAYERS[code].forEach((r,i)=>{ r._id=code+"-"+(r.n!=null?r.n:"i"+i); r._code=code; PLAYER_BY_ID[r._id]={code,r,i}; });
+}
 const POSNAME={GK:"Goalkeeper",DF:"Defender",MF:"Midfielder",FW:"Forward"};
 function fmtDOB(d){ try{ return new Intl.DateTimeFormat("en-GB",{day:"numeric",month:"short",year:"numeric"}).format(new Date(d+"T00:00:00Z")); }catch(e){ return d; } }
 function ord(n){ const s=["th","st","nd","rd"],v=n%100; return n+(s[(v-20)%10]||s[v]||s[0]); }
@@ -1438,7 +1444,7 @@ function teamFixtures(code){
 
 /* ---- team detail ---- */
 function renderTeamDetail(code){
-  const el=$("#team-detail"); if(!el) return;
+  const el=$("#team-detail"); if(!el) return; ensurePlayers();
   if(!T[code]){ el.innerHTML=`<div class="empty-state"><div class="big">🏳️</div><b>Unknown team</b><small>No team with code “${code}”.</small></div>`; return; }
   const P=probsNow(), g=T[code][2], tbl=computeStandings();
   const ms=teamFixtures(code);
@@ -1491,7 +1497,7 @@ function teamSquadHtml(code){
 
 /* ---- player detail (built entirely from baked data + derived context) ---- */
 function renderPlayerDetail(id){
-  const el=$("#player-detail"); if(!el) return;
+  const el=$("#player-detail"); if(!el) return; ensurePlayers();
   const hit=PLAYER_BY_ID[id];
   if(!hit){ el.innerHTML=`<div class="empty-state"><div class="big">🧍</div><b>Unknown player</b></div>`; return; }
   const {code,r}=hit, P=probsNow(), sq=PLAYERS[code];
@@ -1538,8 +1544,10 @@ function renderPlayerDetail(id){
 
 /* ---- players page (from baked PLAYERS) ---- */
 let pFilter={q:"",team:"",pos:"",sort:"caps"};
-function allPlayers(){ const out=[]; for(const code in PLAYERS) for(const r of PLAYERS[code]) out.push(Object.assign({code},r)); return out; }
+let _allPlayers=null;
+function allPlayers(){ if(_allPlayers) return _allPlayers; if(typeof PLAYERS==="undefined") return []; const out=[]; for(const code in PLAYERS) for(const r of PLAYERS[code]) out.push(Object.assign({code},r)); return (_allPlayers=out); }
 function renderPlayers(){
+  ensurePlayers();
   let list=allPlayers();
   if(pFilter.team) list=list.filter(r=>r.code===pFilter.team);
   if(pFilter.pos)  list=list.filter(r=>r.p===pFilter.pos);
@@ -1637,7 +1645,7 @@ if(_pt){
   _pt.innerHTML='<option value="">All teams</option>'+ALL_CODES.slice().sort((a,b)=>tname(a).localeCompare(tname(b))).map(c=>`<option value="${c}">${flag(c)} ${tname(c)}</option>`).join("");
   _pt.addEventListener("change",e=>{ pFilter.team=e.target.value; renderPlayers(); });
 }
-$("#p-search") && $("#p-search").addEventListener("input",e=>{ pFilter.q=e.target.value; renderPlayers(); });
+let _psT; $("#p-search") && $("#p-search").addEventListener("input",e=>{ pFilter.q=e.target.value; clearTimeout(_psT); _psT=setTimeout(renderPlayers,160); });
 $("#p-sort")   && $("#p-sort").addEventListener("change",e=>{ pFilter.sort=e.target.value; renderPlayers(); });
 document.querySelectorAll("#p-pos button").forEach(b=>b.addEventListener("click",()=>{
   document.querySelectorAll("#p-pos button").forEach(x=>x.classList.remove("active"));
@@ -1684,6 +1692,8 @@ const _mh=$("#matches-hint"); if(_mh) _mh.textContent=`All 104 fixtures · times
 // Plotly is a deferred <script>: if it lands after init, upgrade the CSS
 // fallback to the real chart (no-op when it was already there at init).
 window.__plotlyReady=()=>{ if(fcTimeline) renderForecast(); };
+// Deferred player data arrived: build the index and re-render if we're on a player-data view.
+window.__dataReady=()=>{ ensurePlayers(); _allPlayers=null; const v=document.body.getAttribute("data-view"); if(v==="players"||v==="team"||v==="player") route(); };
 
 // Installable + offline: every data file ships in the repo, so caching the
 // static assets makes the whole app work offline. sw.js is network-first for
