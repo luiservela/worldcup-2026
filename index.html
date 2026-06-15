@@ -799,9 +799,7 @@ function espnCode(team){
     const n=_norm(k); if(!n) continue;
     for(const code of ALL_CODES){ if(_norm(tname(code))===n) return code; }
   }
-  const ab=(team.abbreviation||"").toUpperCase();                          // last resort
-  if(ab.length===3 && T[ab]) return ab;
-  return null;
+  return null;   // alias + exact-name matching cover all 48; no risky 3-letter abbreviation guess
 }
 function espnDates(){ // yesterday/today/tomorrow UTC as YYYYMMDD (covers late kickoffs)
   const out=[], d=new Date(Date.now()-86400000);
@@ -1295,9 +1293,12 @@ function computeMovers(){
     if(typeof HISTORY==="undefined") return null;
     const snaps=(HISTORY.snapshots||[]).slice().sort((a,b)=>a.date.localeCompare(b.date));
     if(snaps.length<2) return null;
-    const cur=snaps[snaps.length-1].p||{}, prev=snaps[snaps.length-2].p||{};
+    // Normalize each day's field to 100% (same basis as the chart), then take the
+    // day-over-day change in normalized title-share, in percentage points.
+    const normp=p=>{ const s=Object.values(p||{}).reduce((a,b)=>a+b,0)||1; const o={}; for(const k in (p||{})) o[k]=p[k]/s*100; return o; };
+    const cur=normp(snaps[snaps.length-1].p), prev=normp(snaps[snaps.length-2].p);
     const d=ALL_CODES.filter(c=>cur[c]!=null&&prev[c]!=null)
-      .map(c=>({c, pp:(cur[c]-prev[c])*100}))           // percentage-point move
+      .map(c=>({c, pp:cur[c]-prev[c]}))                 // change in normalized share (percentage points)
       .sort((a,b)=>b.pp-a.pp);
     const up=d.filter(o=>o.pp>=0.05).slice(0,3);
     const dn=d.filter(o=>o.pp<=-0.05).slice(-3).reverse();   // biggest faller first
