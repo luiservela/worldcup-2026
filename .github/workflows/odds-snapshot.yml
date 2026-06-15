@@ -37,4 +37,5 @@ jobs:
             echo "No change today."; exit 0
           fi
           git commit -m "chore: odds snapshot $(date -u +%F)"
+          git pull --rebase --autostash origin main || true   # avoid racing the hourly results bot
           git push

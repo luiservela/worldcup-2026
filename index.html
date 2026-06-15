@@ -662,8 +662,8 @@ const flag = c => T[c][1], tname = c => T[c][0];
 function computeStandings(){
   const tbl = {};
   for(const c in T) tbl[c]={P:0,W:0,D:0,L:0,GF:0,GA:0,Pts:0};
-  for(const [h,a,hs,as] of MATCHES){
-    if(hs==null || as==null) continue;
+  for(const [h,a,hs,as,st] of MATCHES){
+    if(hs==null || as==null || st==="live") continue;   // skip unplayed + in-play (live overlay) — only completed results count
     const H=tbl[h], A=tbl[a];
     H.P++;A.P++;H.GF+=hs;H.GA+=as;A.GF+=as;A.GA+=hs;
     if(hs>as){H.W++;A.L++;H.Pts+=3}
