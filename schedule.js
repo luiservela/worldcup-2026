@@ -20,7 +20,7 @@ const MATCHES=[
 ["BEL","EGY",1,1,"fin","Group G","","Lumen Field",""],
 ["KSA","URU",1,1,"fin","Group H","","Hard Rock Stadium",""],
 ["IRN","NZL",2,2,"fin","Group G","","SoFi Stadium",""],
-["FRA","SEN",null,null,"up","Group I","","MetLife Stadium",""],
+["FRA","SEN",3,1,"fin","Group I","","MetLife Stadium",""],
 ["IRQ","NOR",null,null,"up","Group I","","Gillette Stadium",""],
 ["ARG","ALG",null,null,"up","Group J","","Arrowhead Stadium",""],
 ["AUT","JOR",null,null,"up","Group J","","Levi's Stadium",""],
