@@ -11,7 +11,7 @@
    Bump VER on breaking changes (or to force-flush every client's stale cache,
    which is what v2 did — earlier builds shipped under v1 and could keep
    serving a day-old schedule.js). */
-const VER = "wc26-v3";
+const VER = "wc26-v4";
 const CORE = ["./", "index.html", "schedule.js", "players.js", "images.js",
               "player-img.js", "history.js", "manifest.webmanifest"];
 
@@ -42,10 +42,18 @@ self.addEventListener("fetch", e => {
     );
   } else {
     e.respondWith(
-      caches.match(req).then(hit => hit || fetch(req).then(r => {
-        if (r.ok || r.type === "opaque") { const cp = r.clone(); caches.open(VER).then(c => c.put(req, cp)); }
-        return r;
-      }))
+      caches.match(req).then(hit => {
+        // A subresource-integrity request (e.g. the Plotly CDN bundle, which now
+        // ships crossorigin+integrity) can only be verified against a CORS-readable
+        // body. An opaque response cached from an earlier no-cors load would fail
+        // that check and the browser would block the script — so never serve an
+        // opaque hit to an integrity request; re-fetch it as CORS instead.
+        if (hit && !(req.integrity && hit.type === "opaque")) return hit;
+        return fetch(req).then(r => {
+          if (r.ok || r.type === "opaque") { const cp = r.clone(); caches.open(VER).then(c => c.put(req, cp)); }
+          return r;
+        });
+      })
     );
   }
 });
