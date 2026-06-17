@@ -565,6 +565,7 @@
 <script src="schedule.js"></script>
 <script src="images.js"></script>
 <script src="history.js"></script>
+<script src="event-history.js"></script>
 <!-- 264KB of player data is only needed on players/teams routes, never the landing chart → defer + re-render on arrival -->
 <script src="players.js" defer onload="window.__dataReady&&window.__dataReady()"></script>
 <script src="player-img.js" defer onload="window.__dataReady&&window.__dataReady()"></script>
@@ -1386,10 +1387,67 @@ function renderTeamDetail(code){
       </div>
     </div>
     <div class="stat-panel" style="margin-top:16px">
+      <h3><span class="ic" style="background:rgba(245,93,177,.15)">📈</span>Road to the title</h3>
+      <div class="psub">Win-the-cup probability after each match ${tname(code)} has played — x-axis is the opponent faced, grouped by stage; the series ends when they're knocked out.</div>
+      <div id="tt-chart" style="height:300px;margin-top:8px"></div>
+      <div id="tt-note" class="psub" style="display:none;margin-top:8px"></div>
+    </div>
+    <div class="stat-panel" style="margin-top:16px">
       <h3><span class="ic" style="background:rgba(124,92,255,.15)">👥</span>Squad</h3>
       <div class="psub">${(PLAYERS[code]||[]).length} players · final World Cup roster</div>
       ${teamSquadHtml(code)}
     </div>`;
+  setTimeout(()=>renderTeamTitleChart(code),0);   // chart needs the panel laid out first
+}
+// Per-team "road to the title": one bar per match the team played, height = its
+// win-the-cup probability sampled at that match's final whistle (EVENT_HISTORY).
+// X-axis tick = the opponent's flag; an outer band labels the stage (Groups/R32/…).
+// The series naturally ends at elimination (no further matches reference the team).
+const PHASE_SHORT={"Group stage":"Groups","Round of 32":"R32","Round of 16":"R16","Quarter-final":"QF","Quarter-finals":"QF","Semi-final":"SF","Semi-finals":"SF","Third place play-off":"3rd place","Final":"Final"};
+function teamTitleSlots(code){
+  if(typeof EVENT_HISTORY==="undefined"||!EVENT_HISTORY.slots) return [];
+  const out=[];
+  for(const s of EVENT_HISTORY.slots){                       // slots are already in completion order
+    const m=(s.matches||[]).find(mm=>mm.hc===code||mm.ac===code);
+    if(!m) continue;
+    const home=m.hc===code;
+    out.push({opp:home?m.ac:m.hc, gf:home?m.hs:m.as, ga:home?m.as:m.hs, phase:s.phase, t:s.t, prob:(s.p[code]!=null?s.p[code]:0)*100});
+  }
+  return out;
+}
+function renderTeamTitleChart(code){
+  const host=document.getElementById("tt-chart"), note=document.getElementById("tt-note");
+  if(!host) return;
+  const slots=teamTitleSlots(code);
+  const showNote=t=>{ host.style.display="none"; if(note){ note.style.display="block"; note.textContent=t; } };
+  if(!slots.length) return showNote(`No completed matches yet — this chart fills in as ${tname(code)} plays.`);
+  if(typeof Plotly==="undefined") return showNote("Interactive chart needs the Plotly library (loading from CDN)…");
+  host.style.display="block"; if(note) note.style.display="none";
+  const xs=slots.map((_,i)=>i), ys=slots.map(s=>s.prob), tick=slots.map(s=>flag(s.opp));
+  const col=COLOR[code]||"#2e7bff", fmtD=t=>new Intl.DateTimeFormat("en-GB",{day:"numeric",month:"short"}).format(new Date(t));
+  const trace={type:"bar", x:xs, y:ys, width:0.66,
+    marker:{color:col, line:{width:0.7, color:"rgba(6,7,13,.5)"}},
+    hovertext:slots.map(s=>`${PHASE_SHORT[s.phase]||s.phase} · ${fmtD(s.t)}<br>${flag(code)} ${tname(code)} ${s.gf}–${s.ga} ${flag(s.opp)} ${tname(s.opp)}<br><b>Title chance: ${s.prob.toFixed(1)}%</b>`),
+    hovertemplate:"%{hovertext}<extra></extra>"};
+  // Outer band: merge consecutive same-stage bars into a labelled, faintly-tinted block.
+  const shapes=[], anns=[]; let i=0, alt=0;
+  while(i<slots.length){
+    let j=i; while(j+1<slots.length && slots[j+1].phase===slots[i].phase) j++;
+    shapes.push({type:"rect", xref:"x", yref:"paper", x0:i-0.5, x1:j+0.5, y0:0, y1:1, layer:"below", line:{width:0}, fillcolor:alt%2?"rgba(255,255,255,.025)":"rgba(255,255,255,.055)"});
+    if(i>0) shapes.push({type:"line", xref:"x", yref:"paper", x0:i-0.5, x1:i-0.5, y0:0, y1:1, line:{color:"rgba(255,255,255,.16)", width:1}});
+    anns.push({x:(i+j)/2, y:1, xref:"x", yref:"paper", yanchor:"bottom", yshift:3, showarrow:false, text:PHASE_SHORT[slots[i].phase]||slots[i].phase, font:{size:11,color:"#9aa1ba"}});
+    alt++; i=j+1;
+  }
+  const ymax=Math.max(2, Math.max(...ys)*1.3);
+  const layout={
+    paper_bgcolor:"rgba(0,0,0,0)", plot_bgcolor:"rgba(255,255,255,.022)",
+    margin:{l:36,r:10,t:20,b:34}, bargap:0.3,
+    font:{color:"#8b92ad", family:'Segoe UI, system-ui, sans-serif', size:12},
+    xaxis:{tickmode:"array", tickvals:xs, ticktext:tick, tickfont:{size:16}, fixedrange:true, showgrid:false, zeroline:false, showline:true, linecolor:"rgba(255,255,255,.14)", range:[-0.5, slots.length-0.5]},
+    yaxis:{range:[0,ymax], ticksuffix:"%", tickfont:{size:10}, fixedrange:true, showgrid:true, gridcolor:"rgba(255,255,255,.07)", zeroline:false, showline:true, linecolor:"rgba(255,255,255,.14)"},
+    shapes, annotations:anns, hovermode:"closest", showlegend:false,
+  };
+  Plotly.react(host, [trace], layout, {displayModeBar:false, responsive:true});
 }
 function ageFrom(dob){ if(!dob) return ""; const d=new Date(dob+"T00:00:00Z"),n=new Date(); let a=n.getUTCFullYear()-d.getUTCFullYear(); const m=n.getUTCMonth()-d.getUTCMonth(); if(m<0||(m===0&&n.getUTCDate()<d.getUTCDate()))a--; return a; }
 // Shared player card — identical on the Players page and team pages.
@@ -1620,7 +1678,8 @@ const _mh=$("#matches-hint"); if(_mh) _mh.textContent=`All 104 fixtures · times
 
 // Plotly is a deferred <script>: if it lands after init, upgrade the CSS
 // fallback to the real chart (no-op when it was already there at init).
-window.__plotlyReady=()=>{ if(fcTimeline) renderForecast(); };
+window.__plotlyReady=()=>{ if(fcTimeline) renderForecast();
+  const mm=(location.hash||"").match(/^#\/team\/([A-Za-z]{3})/); if(mm) renderTeamTitleChart(mm[1].toUpperCase()); };
 // Deferred player data arrived: build the index and re-render if we're on a player-data view.
 window.__dataReady=()=>{ ensurePlayers(); _allPlayers=null; const v=document.body.getAttribute("data-view"); if(v==="players"||v==="team"||v==="player") route(); };
 
