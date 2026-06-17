@@ -844,7 +844,7 @@ const COLOR={};
 
 /* ---- bar-colour modes: vibrant · team (crest's dominant colour) · complement · tartan (default) ---- */
 let FC_COLORMODE="tartan";
-let FC_XMODE="event";   // hero x-axis: "event" (one bar per match result, EVENT_HISTORY) | "day" (one bar per calendar day)
+let FC_XMODE="day";   // hero x-axis: "day" (one bar per calendar day) | "event" (one bar per match result, EVENT_HISTORY)
 const TARTAN_SHAPES=["x","/","\\","+","-","|","."];   // weave geometries — a 2nd discriminator so same-colour crests (e.g. POR/ESP) still differ
 const CREST_COLOR={};                 // code -> {h,s,l} extracted from the crest
 let crestColorsReady=false, crestColorsLoading=false;
