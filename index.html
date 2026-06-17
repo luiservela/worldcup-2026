@@ -442,7 +442,6 @@
       <button id="fc-share" class="fc-colorbtn" title="Share this chart as an image">📤 Share</button>
       <button id="fc-options-btn" class="fc-colorbtn" title="Display options" aria-expanded="false">⚙️ Options</button>
       <div class="fc-options" id="fc-options" hidden>
-        <button id="fc-xmode" class="fc-colorbtn" title="X-axis: one bar per match result (By match) ↔ one bar per calendar day (Daily)">📊 By match</button>
         <button id="fc-colormode" class="fc-colorbtn" title="Bar colours: Vibrant → Team → Complementary → Tartan">🎨 Tartan</button>
         <label class="fc-crest-ctl" title="Crest size">⬤ <input id="fc-crest-size" type="range" min="14" max="84" value="66" /></label>
       </div>
@@ -566,6 +565,7 @@
 <script src="schedule.js"></script>
 <script src="images.js"></script>
 <script src="history.js"></script>
+<script src="odds-hourly.js"></script>
 <script src="event-history.js"></script>
 <!-- 264KB of player data is only needed on players/teams routes, never the landing chart → defer + re-render on arrival -->
 <script src="players.js" defer onload="window.__dataReady&&window.__dataReady()"></script>
@@ -844,7 +844,6 @@ const COLOR={};
 
 /* ---- bar-colour modes: vibrant · team (crest's dominant colour) · complement · tartan (default) ---- */
 let FC_COLORMODE="tartan";
-let FC_XMODE="day";   // hero x-axis: "day" (one bar per calendar day) | "event" (one bar per match result, EVENT_HISTORY)
 const TARTAN_SHAPES=["x","/","\\","+","-","|","."];   // weave geometries — a 2nd discriminator so same-colour crests (e.g. POR/ESP) still differ
 const CREST_COLOR={};                 // code -> {h,s,l} extracted from the crest
 let crestColorsReady=false, crestColorsLoading=false;
@@ -982,38 +981,28 @@ function applyPreset(p){
   renderForecast(fcTimeline);
 }
 
-// Tournament window: one bar per day from kickoff to the final.
+// Tournament window: the hero spans kickoff → final, with empty space ahead of the latest data.
 const TOUR_START="2026-06-11", TOUR_END="2026-07-19";
-function tournamentDays(){ const out=[]; const d=new Date(TOUR_START+"T00:00:00Z"), end=new Date(TOUR_END+"T00:00:00Z"); while(d<=end){ out.push(d.toISOString().slice(0,10)); d.setUTCDate(d.getUTCDate()+1);} return out; }
-// Per-day normalized win-probability. Past/today = real data (colored); future = null (blank/grey).
-// Per-day matrix normalized over the SELECTED teams, so the visible stack always
-// sums to 100% (pick 3 teams → those 3 fill the chart, ratio preserved).
-function dailyMatrix(visible){
-  const days=tournamentDays(), today=new Date().toISOString().slice(0,10);
-  const live=fcTimeline&&fcTimeline.live, M={}; ALL_CODES.forEach(c=>M[c]=[]);
-  for(const day of days){
-    if(day>today){ ALL_CODES.forEach(c=>M[c].push(null)); continue; }   // future → blank
-    const raw={};
-    if(live){ ALL_CODES.forEach(c=>{ const s=fcTimeline.series[c], ds=fcTimeline.dates; let v=0; for(let i=0;i<ds.length;i++){ if(ds[i]<=day) v=s[i]; else break; } raw[c]=Math.max(0,v); }); }
-    else { ALL_CODES.forEach(c=>raw[c]=(SEED[c]||0)/100); }
-    let sum=0; for(const c of ALL_CODES){ if(visible.has(c)) sum+=raw[c]; }
-    sum=sum||1;
-    ALL_CODES.forEach(c=>M[c].push(visible.has(c)?raw[c]/sum*100:0));
-  }
-  return {days,today,M};
+// Hourly series for the hero stacked area: prefer the owned hourly archive
+// (ODDS_HOURLY); fall back to the daily timeline if it hasn't loaded yet.
+function areaSeries(){
+  if(typeof ODDS_HOURLY!=="undefined" && ODDS_HOURLY.times && ODDS_HOURLY.times.length)
+    return {times:ODDS_HOURLY.times, raw:ODDS_HOURLY.p};
+  if(fcTimeline && fcTimeline.live && fcTimeline.dates && fcTimeline.dates.length)
+    return {times:fcTimeline.dates.map(d=>d+"T00:00:00Z"), raw:fcTimeline.series};
+  return null;
 }
-// Event-indexed counterpart: one column per completed match-slot (EVENT_HISTORY),
-// normalized over the SELECTED teams so each stacked bar still sums to 100%. Reads
-// the owned archive directly — independent of the daily timeline.
-function eventMatrix(visible){
-  const slots=(typeof EVENT_HISTORY!=="undefined"&&EVENT_HISTORY.slots)||[];
-  const M={}; ALL_CODES.forEach(c=>M[c]=[]);
-  for(const s of slots){
-    let sum=0; for(const c of ALL_CODES){ if(visible.has(c)) sum+=Math.max(0,s.p[c]||0); }
+// Per-time win-probability normalized over the SELECTED teams, so the stacked area
+// always sums to 100% (pick 3 teams → those 3 fill the chart, ratio preserved).
+function areaMatrix(visible){
+  const s=areaSeries(); if(!s) return null;
+  const T=s.times.length, M={}; ALL_CODES.forEach(c=>M[c]=new Array(T).fill(0));
+  for(let i=0;i<T;i++){
+    let sum=0; for(const c of ALL_CODES){ if(visible.has(c)) sum+=Math.max(0,(s.raw[c]&&s.raw[c][i])||0); }
     sum=sum||1;
-    ALL_CODES.forEach(c=>M[c].push(visible.has(c)?Math.max(0,s.p[c]||0)/sum*100:0));
+    for(const c of ALL_CODES){ if(visible.has(c)) M[c][i]=Math.max(0,(s.raw[c]&&s.raw[c][i])||0)/sum*100; }
   }
-  return {slots,M};
+  return {times:s.times, M};
 }
 
 function renderForecast(tl){
@@ -1022,95 +1011,58 @@ function renderForecast(tl){
   const ranked=fcRankedCodes(fcTimeline);
   if(typeof Plotly==="undefined"){ return renderFallback(fcTimeline,ranked); }
   $("#fc-fallback").style.display="none"; $("#fc-chart").style.display="block";
-  // Responsive: thin the x-axis ticks and drop the 48-team legend on narrow (phone) widths.
+  // Responsive: drop the 48-team legend on narrow (phone) widths.
   const cw=(document.getElementById("fc-chart")||{}).clientWidth||window.innerWidth||800;
   const fcLegend = cw>=560;
-  const useEvent = FC_XMODE==="event" && typeof EVENT_HISTORY!=="undefined" && EVENT_HISTORY.slots && EVENT_HISTORY.slots.length;
-
-  if(useEvent){
-    // ---- EVENT axis: one stacked bar per completed match-slot; two-level x (stage band · date). ----
-    const slots=EVENT_HISTORY.slots, n=slots.length;
-    const {M}=eventMatrix(fcVisible);
-    const xs=slots.map((_,i)=>i);
-    const dfmt=new Intl.DateTimeFormat(undefined,{day:"numeric",month:"short"});       // viewer's timezone
-    const dkey=new Intl.DateTimeFormat(undefined,{year:"numeric",month:"short",day:"numeric"});
-    const traces=ranked.map(c=>({
-      type:"bar", x:xs, y:M[c], name:fcTitle(c),
-      marker:barMarker(c), visible:fcVisible.has(c)?true:"legendonly", meta:c,
-      customdata:slots.map(s=>{ const m=(s.matches||[]).find(mm=>mm.hc===c||mm.ac===c), opp=m?(m.hc===c?m.ac:m.hc):null;
-        return `${dfmt.format(new Date(s.t))} · ${PHASE_SHORT[s.phase]||s.phase}`+(opp?`<br>${flag(c)} ${m.hc===c?m.hs:m.as}–${m.hc===c?m.as:m.hs} ${flag(opp)}`:""); }),
-      hovertemplate:`%{customdata}<br>${fcTitle(c)}: %{y:.1f}%<extra></extra>`,
-    }));
-    // Stage band BELOW the date ticks: merge consecutive same-stage slots → tinted block + centered label + divider.
-    const shapes=[], anns=[]; let i=0, alt=0;
-    while(i<n){ let j=i; while(j+1<n && slots[j+1].phase===slots[i].phase) j++;
-      shapes.push({type:"rect", xref:"x", yref:"paper", x0:i-0.5, x1:j+0.5, y0:0, y1:1, layer:"below", line:{width:0}, fillcolor:alt%2?"rgba(255,255,255,.016)":"rgba(255,255,255,.04)"});
-      if(i>0) shapes.push({type:"line", xref:"x", yref:"paper", x0:i-0.5, x1:i-0.5, y0:0, y1:1, line:{color:"rgba(255,255,255,.14)", width:1}});
-      anns.push({x:(i+j)/2, y:0, xref:"x", yref:"paper", yanchor:"top", yshift:-26, showarrow:false, text:PHASE_SHORT[slots[i].phase]||slots[i].phase, font:{size:12,color:"#8b92ad"}});
-      alt++; i=j+1;
-    }
-    // Inner ticks: one date per day (first slot of each day), thinned on narrow widths.
-    const step = cw>=700?1 : cw>=480?2:3; const tickvals=[], ticktext=[]; let dseen=0, lastKey=null;
-    for(let k=0;k<n;k++){ const key=dkey.format(new Date(slots[k].t)); if(key!==lastKey){ if(dseen%step===0){ tickvals.push(k); ticktext.push(dfmt.format(new Date(slots[k].t))); } dseen++; lastKey=key; } }
-    const layout={
-      paper_bgcolor:"rgba(0,0,0,0)", plot_bgcolor:"rgba(255,255,255,.022)",
-      margin:FC_MARGIN, bargap:0.12, barmode:"stack",
-      font:{color:"#8b92ad", family:'Segoe UI, system-ui, sans-serif', size:12},
-      xaxis:{tickmode:"array", tickvals, ticktext, range:[-0.5,n-0.5], tickfont:{size:10},
-        ticks:"outside", ticklen:3, tickcolor:"rgba(255,255,255,.12)",
-        showgrid:false, showline:true, linecolor:"rgba(255,255,255,.14)", mirror:true, fixedrange:true},
-      yaxis:{range:[0,100], dtick:25, showticklabels:false,
-        showgrid:true, gridcolor:"rgba(255,255,255,.07)", zeroline:false, showline:true, linecolor:"rgba(255,255,255,.14)", mirror:true, fixedrange:true},
-      showlegend:fcLegend, legend:{bgcolor:"rgba(0,0,0,0)", font:{size:11}, traceorder:"normal"},
-      hovermode:"closest", shapes, annotations:anns,
-    };
-    Plotly.react("fc-chart", traces, layout, {displayModeBar:false, responsive:true});
-    fcLast={mode:"event", n, M, ranked}; setTimeout(placeCrests,0);
-  } else {
-    // ---- DAY axis: one bar per calendar day across the whole tournament window (incl. future). ----
-    const {days,today,M}=dailyMatrix(fcVisible);
-    const traces=ranked.map(c=>({
-      type:"bar", x:days, y:M[c], name:fcTitle(c),
-      marker:barMarker(c), visible:fcVisible.has(c)?true:"legendonly", meta:c,
-      hovertemplate:`%{x|%d %b}<br>${fcTitle(c)}: %{y:.1f}%<extra></extra>`,
-    }));
-    const DAY=86400000, half=DAY/2;
-    const axStart=new Date(new Date(TOUR_START+"T00:00:00Z").getTime()-half).toISOString();
-    const axEnd  =new Date(new Date(TOUR_END  +"T00:00:00Z").getTime()+half).toISOString();
-    const futureX0=new Date(new Date(today+"T00:00:00Z").getTime()+half).toISOString();
-    const midFuture=new Date((Date.parse(futureX0)+Date.parse(axEnd))/2).toISOString();
-    // Month row BELOW the day numbers (axis area only): centered month names with a "|" at each boundary.
-    const monthAnns=[];
-    { const sMs=Date.parse(TOUR_START+"T00:00:00Z"), eMs=Date.parse(TOUR_END+"T00:00:00Z");
-      let m=new Date(sMs); m=new Date(Date.UTC(m.getUTCFullYear(),m.getUTCMonth(),1));
-      while(m.getTime()<=eMs){
-        const ms0=Math.max(m.getTime(),sMs), ms1=Math.min(Date.UTC(m.getUTCFullYear(),m.getUTCMonth()+1,0),eMs);
-        monthAnns.push({x:new Date((ms0+ms1)/2).toISOString(), y:0, xref:"x", yref:"paper", yanchor:"top", yshift:-26, showarrow:false,
-          text:new Intl.DateTimeFormat("en-GB",{month:"long",timeZone:"UTC"}).format(m), font:{size:12,color:"#8b92ad"}});
-        if(m.getTime()>sMs){ // divider "|" sits in the axis area between the two month names
-          monthAnns.push({x:new Date(m.getTime()-DAY/2).toISOString(), y:0, xref:"x", yref:"paper", yanchor:"top", yshift:-26, showarrow:false,
-            text:"|", font:{size:12,color:"rgba(255,255,255,.35)"}}); }
-        m=new Date(Date.UTC(m.getUTCFullYear(),m.getUTCMonth()+1,1));
-      } }
-    const todayX=new Date(new Date(today+"T00:00:00Z").getTime()+half).toISOString();
-    const fcDtick = cw>=700?DAY : cw>=480?2*DAY : 7*DAY;
-    const layout={
-      paper_bgcolor:"rgba(0,0,0,0)", plot_bgcolor:"rgba(255,255,255,.022)",   // one ruled canvas across all days
-      margin:FC_MARGIN, bargap:0.12, barmode:"stack",
-      font:{color:"#8b92ad", family:'Segoe UI, system-ui, sans-serif', size:12},
-      xaxis:{type:"date", range:[axStart,axEnd], dtick:fcDtick, tickformat:"%-d", tickfont:{size:10},
-        ticks:"outside", ticklen:3, tickcolor:"rgba(255,255,255,.12)",
-        showgrid:true, gridcolor:"rgba(255,255,255,.045)", showline:true, linecolor:"rgba(255,255,255,.14)", mirror:true, fixedrange:true},
-      yaxis:{range:[0,100], dtick:25, showticklabels:false,
-        showgrid:true, gridcolor:"rgba(255,255,255,.07)", zeroline:false, showline:true, linecolor:"rgba(255,255,255,.14)", mirror:true, fixedrange:true},
-      showlegend:fcLegend, legend:{bgcolor:"rgba(0,0,0,0)", font:{size:11}, traceorder:"normal"},
-      hovermode:"closest",
-      shapes:[{type:"line", xref:"x", yref:"paper", x0:todayX, x1:todayX, y0:0, y1:1, line:{color:"rgba(245,197,66,.5)", width:1, dash:"dot"}}],
-      annotations:[{x:midFuture, y:0.5, xref:"x", yref:"paper", text:"Matches to come — odds fill in daily", showarrow:false, font:{size:12,color:"#565d76"}}].concat(monthAnns),
-    };
-    Plotly.react("fc-chart", traces, layout, {displayModeBar:false, responsive:true});
-    fcLast={mode:"day", days,today,M,ranked}; setTimeout(placeCrests,0);   // circular crest badges overlay
-  }
+  const am=areaMatrix(fcVisible);
+  if(!am){ return renderFallback(fcTimeline,ranked); }
+  const {times,M}=am;
+  // Stacked AREA: one filled band per team, tartan-woven (fillpattern), with a thin
+  // dark line bordering each band so adjacent tartans stay distinct.
+  const traces=ranked.map(c=>{
+    const mk=barMarker(c);
+    const tr={ type:"scatter", x:times, y:M[c], name:fcTitle(c), meta:c,
+      mode:"lines", line:{width:1, color:"rgba(6,7,13,.6)"},
+      stackgroup:"one", fillcolor:mk.color,
+      visible:fcVisible.has(c)?true:"legendonly",
+      hovertemplate:`%{x|%-d %b · %H:%M}<br>${fcTitle(c)}: %{y:.1f}%<extra></extra>` };
+    if(mk.pattern) tr.fillpattern={shape:mk.pattern.shape, fgcolor:mk.pattern.fgcolor, bgcolor:mk.pattern.bgcolor, size:mk.pattern.size, solidity:mk.pattern.solidity};
+    return tr;
+  });
+  const DAY=86400000, half=DAY/2;
+  const axStart=new Date(new Date(TOUR_START+"T00:00:00Z").getTime()-half).toISOString();
+  const axEnd  =new Date(new Date(TOUR_END  +"T00:00:00Z").getTime()+half).toISOString();
+  const lastT=times.length?times[times.length-1]:axStart;               // right edge of real data
+  const midFuture=new Date((Date.parse(lastT)+Date.parse(axEnd))/2).toISOString();
+  // Month row BELOW the day numbers: centered month names with a "|" at each boundary.
+  const monthAnns=[];
+  { const sMs=Date.parse(TOUR_START+"T00:00:00Z"), eMs=Date.parse(TOUR_END+"T00:00:00Z");
+    let m=new Date(sMs); m=new Date(Date.UTC(m.getUTCFullYear(),m.getUTCMonth(),1));
+    while(m.getTime()<=eMs){
+      const ms0=Math.max(m.getTime(),sMs), ms1=Math.min(Date.UTC(m.getUTCFullYear(),m.getUTCMonth()+1,0),eMs);
+      monthAnns.push({x:new Date((ms0+ms1)/2).toISOString(), y:0, xref:"x", yref:"paper", yanchor:"top", yshift:-26, showarrow:false,
+        text:new Intl.DateTimeFormat("en-GB",{month:"long",timeZone:"UTC"}).format(m), font:{size:12,color:"#8b92ad"}});
+      if(m.getTime()>sMs){ // divider "|" sits in the axis area between the two month names
+        monthAnns.push({x:new Date(m.getTime()-DAY/2).toISOString(), y:0, xref:"x", yref:"paper", yanchor:"top", yshift:-26, showarrow:false,
+          text:"|", font:{size:12,color:"rgba(255,255,255,.35)"}}); }
+      m=new Date(Date.UTC(m.getUTCFullYear(),m.getUTCMonth()+1,1));
+    } }
+  const fcDtick = cw>=700?2*DAY : cw>=480?4*DAY : 7*DAY;
+  const layout={
+    paper_bgcolor:"rgba(0,0,0,0)", plot_bgcolor:"rgba(255,255,255,.022)",
+    margin:FC_MARGIN, hovermode:"closest",
+    font:{color:"#8b92ad", family:'Segoe UI, system-ui, sans-serif', size:12},
+    xaxis:{type:"date", range:[axStart,axEnd], dtick:fcDtick, tickformat:"%-d", tickfont:{size:10},
+      ticks:"outside", ticklen:3, tickcolor:"rgba(255,255,255,.12)",
+      showgrid:true, gridcolor:"rgba(255,255,255,.045)", showline:true, linecolor:"rgba(255,255,255,.14)", mirror:true, fixedrange:true},
+    yaxis:{range:[0,100], dtick:25, showticklabels:false,
+      showgrid:true, gridcolor:"rgba(255,255,255,.07)", zeroline:false, showline:true, linecolor:"rgba(255,255,255,.14)", mirror:true, fixedrange:true},
+    showlegend:fcLegend, legend:{bgcolor:"rgba(0,0,0,0)", font:{size:11}, traceorder:"normal"},
+    shapes:[{type:"line", xref:"x", yref:"paper", x0:lastT, x1:lastT, y0:0, y1:1, line:{color:"rgba(245,197,66,.5)", width:1, dash:"dot"}}],
+    annotations:[{x:midFuture, y:0.5, xref:"x", yref:"paper", text:"Rest of tournament — fills in as matches play", showarrow:false, font:{size:12,color:"#565d76"}}].concat(monthAnns),
+  };
+  Plotly.react("fc-chart", traces, layout, {displayModeBar:false, responsive:true});
+  fcLast={times, M, ranked, axStart, axEnd, lastT}; setTimeout(placeCrests,0);   // circular crest badges overlay
   const dl=$("#fc-teamlist"); if(dl) dl.innerHTML=ranked.map(c=>`<option value="${tname(c)}">`).join("");
   // Toggling teams via the legend changes the selection → re-normalize to 100%.
   const gd=document.getElementById("fc-chart");
@@ -1139,22 +1091,15 @@ function renderForecast(tl){
 // vertically centered on each selected team's CURRENT share. Higher share = on top.
 function placeCrests(){
   const host=$("#fc-crests"), chart=document.getElementById("fc-chart");
-  if(!host||!chart||!fcLast){ if(host) host.innerHTML=""; return; }
-  const {M,ranked}=fcLast;
+  if(!host||!chart||!fcLast||!fcLast.times){ if(host) host.innerHTML=""; return; }
+  const {M,ranked,times}=fcLast;
   const W=chart.clientWidth, H=chart.clientHeight;
   if(!W||!H){ host.innerHTML=""; return; }
   const sz=Math.round(CREST_SIZE*(W<420?0.55:W<640?0.78:1));   // scale badges down on phones
   const plotL=FC_MARGIN.l, plotR=W-FC_MARGIN.r, plotT=FC_MARGIN.t, plotB=H-FC_MARGIN.b;
-  // Right edge of the latest bar → its x in pixels, plus the index of that latest column.
-  let xPix, lastIdx;
-  if(fcLast.mode==="event"){
-    const n=fcLast.n, axS=-0.5, axE=n-0.5, barRight=(n-1)+0.44;
-    xPix=plotL+(barRight-axS)/(axE-axS)*(plotR-plotL); lastIdx=n-1;
-  } else {
-    const axStart=Date.parse(TOUR_START+"T00:00:00Z")-DAY/2, axEnd=Date.parse(TOUR_END+"T00:00:00Z")+DAY/2;
-    const barRight=Date.parse(fcLast.today+"T00:00:00Z")+0.44*DAY;
-    xPix=plotL+(barRight-axStart)/(axEnd-axStart)*(plotR-plotL); lastIdx=fcLast.days.indexOf(fcLast.today);
-  }
+  // Right edge of the latest data point → its x in pixels on the date axis.
+  const axS=Date.parse(fcLast.axStart), axE=Date.parse(fcLast.axEnd), lastIdx=times.length-1;
+  const xPix=plotL+(Date.parse(fcLast.lastT)-axS)/(axE-axS)*(plotR-plotL);
   let cum=0; const items=[];
   for(const c of ranked){
     const share=lastIdx>=0?(M[c][lastIdx]||0):0;
@@ -1721,12 +1666,6 @@ if(_cm) _cm.addEventListener("click",()=>{
   renderForecast();
 });
 updateColorBtn();
-
-// X-axis mode toggle: By match (one bar per result, event-indexed) ↔ Daily.
-function updateXBtn(){ const b=$("#fc-xmode"); if(b) b.textContent = FC_XMODE==="event" ? "📊 By match" : "📅 Daily"; }
-const _xm=$("#fc-xmode");
-if(_xm) _xm.addEventListener("click",()=>{ FC_XMODE = FC_XMODE==="event" ? "day" : "event"; updateXBtn(); renderForecast(); });
-updateXBtn();
 
 // ⚙️ Options disclosure: reveal the palette toggle + crest-size slider.
 const _ob=$("#fc-options-btn"), _op=$("#fc-options");
