@@ -1424,9 +1424,9 @@ function renderTeamTitleChart(code){
   if(typeof Plotly==="undefined") return showNote("Interactive chart needs the Plotly library (loading from CDN)…");
   host.style.display="block"; if(note) note.style.display="none";
   const xs=slots.map((_,i)=>i), ys=slots.map(s=>s.prob), tick=slots.map(s=>flag(s.opp));
-  const col=COLOR[code]||"#2e7bff", fmtD=t=>new Intl.DateTimeFormat("en-GB",{day:"numeric",month:"short"}).format(new Date(t));
+  const fmtD=t=>new Intl.DateTimeFormat("en-GB",{day:"numeric",month:"short"}).format(new Date(t));
   const trace={type:"bar", x:xs, y:ys, width:0.66,
-    marker:{color:col, line:{width:0.7, color:"rgba(6,7,13,.5)"}},
+    marker:barMarker(code),                        // same fill the hero uses for this team (tartan weave by default)
     hovertext:slots.map(s=>`${PHASE_SHORT[s.phase]||s.phase} · ${fmtD(s.t)}<br>${flag(code)} ${tname(code)} ${s.gf}–${s.ga} ${flag(s.opp)} ${tname(s.opp)}<br><b>Title chance: ${s.prob.toFixed(1)}%</b>`),
     hovertemplate:"%{hovertext}<extra></extra>"};
   // Outer band: merge consecutive same-stage bars into a labelled, faintly-tinted block.
@@ -1448,6 +1448,10 @@ function renderTeamTitleChart(code){
     shapes, annotations:anns, hovermode:"closest", showlegend:false,
   };
   Plotly.react(host, [trace], layout, {displayModeBar:false, responsive:true});
+  // Tartan/Team/Complementary fills derive from crest pixels; once those finish
+  // loading, re-render so the bars upgrade from the solid fallback to the real weave.
+  if(!crestColorsReady && FC_COLORMODE!=="vibrant")
+    extractCrestColors(()=>{ const mm=(location.hash||"").match(/^#\/team\/([A-Za-z]{3})/); if(mm&&mm[1].toUpperCase()===code) renderTeamTitleChart(code); });
 }
 function ageFrom(dob){ if(!dob) return ""; const d=new Date(dob+"T00:00:00Z"),n=new Date(); let a=n.getUTCFullYear()-d.getUTCFullYear(); const m=n.getUTCMonth()-d.getUTCMonth(); if(m<0||(m===0&&n.getUTCDate()<d.getUTCDate()))a--; return a; }
 // Shared player card — identical on the Players page and team pages.
