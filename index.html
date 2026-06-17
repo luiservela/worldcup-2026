@@ -842,6 +842,7 @@ const COLOR={};
 
 /* ---- bar-colour modes: vibrant · team (crest's dominant colour) · complement · tartan (default) ---- */
 let FC_COLORMODE="tartan";
+const TARTAN_SHAPES=["x","/","\\","+","-","|","."];   // weave geometries — a 2nd discriminator so same-colour crests (e.g. POR/ESP) still differ
 const CREST_COLOR={};                 // code -> {h,s,l} extracted from the crest
 let crestColorsReady=false, crestColorsLoading=false;
 function rgb2hsl(r,g,b){ r/=255;g/=255;b/=255; const mx=Math.max(r,g,b),mn=Math.min(r,g,b),d=mx-mn; let h=0; const l=(mx+mn)/2, s=d===0?0:d/(1-Math.abs(2*l-1));
@@ -892,7 +893,8 @@ function barMarker(c){
     const ordered=cols.slice().sort((a,b)=>b.s-a.s);               // more-saturated colour as the base
     const base=vivid(ordered[0]);
     const weave=vivid(ordered[1]||{h:(ordered[0].h+150)%360, s:0.75, l:0.55});
-    return {color:hsl(base), line:sep, pattern:{shape:"x", fgcolor:hsl(weave), bgcolor:hsl(base), size:10, solidity:0.55}};
+    const shape=TARTAN_SHAPES[(ALL_CODES.indexOf(c)+TARTAN_SHAPES.length)%TARTAN_SHAPES.length];
+    return {color:hsl(base), line:sep, pattern:{shape, fgcolor:hsl(weave), bgcolor:hsl(base), size:10, solidity:0.55}};
   }
   return {color:COLOR[c], line:sep};
 }
