@@ -1234,15 +1234,14 @@ const SITE_URL="https://luiservela.github.io/worldcup-2026/";
 // The DOM crest badges aren't part of the Plotly canvas, so the export labels
 // each visible team with a text annotation at today's bar instead.
 function fcShareAnnotations(){
-  if(!fcLast) return [];
-  const {days,today,M,ranked}=fcLast;
-  const idx=days.indexOf(today); if(idx<0) return [];
-  const x=new Date(Date.parse(today+"T00:00:00Z")+DAY*0.55).toISOString();
-  let cum=0; const out=[];
+  if(!fcLast||!fcLast.times||!fcLast.times.length) return [];
+  const {M,ranked,times,lastT}=fcLast;
+  const idx=times.length-1;                       // latest data column
+  let cum=0; const out=[];                         // stack from the bottom (ranked[0] = strongest)
   for(const c of ranked){
     const share=M[c][idx]||0;
     if(fcVisible.has(c) && share>2.5){
-      out.push({x, y:100-(cum+share/2), xref:"x", yref:"y", xanchor:"left", showarrow:false,
+      out.push({x:lastT, y:cum+share/2, xref:"x", yref:"y", xanchor:"right", showarrow:false,
         text:`${flag(c)} <b>${tname(c)}</b> ${share.toFixed(1)}%`,
         font:{size:13,color:"#eef1fb"}, bgcolor:"rgba(6,7,13,.72)", borderpad:3});
     }
@@ -1256,7 +1255,7 @@ async function fcShare(){
     if(navigator.share){ try{ await navigator.share({title:document.title,url:SITE_URL}); }catch(e){} }
     return;
   }
-  const old=btn.textContent; btn.disabled=true; btn.textContent="📤 Rendering…";
+  const old=btn.textContent; btn.disabled=true; btn.textContent="📤 Rendering…"; let done="";
   try{
     const today=new Date().toISOString().slice(0,10);
     const stamp=new Intl.DateTimeFormat("en-GB",{day:"numeric",month:"long",year:"numeric"}).format(new Date());
@@ -1267,10 +1266,11 @@ async function fcShare(){
       {x:0.995,y:0.02,xref:"paper",yref:"paper",xanchor:"right",yanchor:"bottom",showarrow:false,
        text:"luiservela.github.io/worldcup-2026", font:{size:13,color:"rgba(245,197,66,.95)"},
        bgcolor:"rgba(6,7,13,.72)", borderpad:4}];
+    const xEnd=fcLast&&fcLast.lastT ? new Date(Date.parse(fcLast.lastT)+DAY).toISOString() : (gd.layout.xaxis.range||[])[1];
     const layout=Object.assign({},gd.layout,{
       width:1200, height:630, showlegend:false,
       paper_bgcolor:"#06070d", plot_bgcolor:"#0b0e1a",
-      xaxis:Object.assign({},gd.layout.xaxis,{dtick:DAY}),   // full-width export → daily ticks
+      xaxis:Object.assign({},gd.layout.xaxis,{range:[fcLast.axStart,xEnd], dtick:2*DAY}),   // focus the export on the actual curve, not the empty future
       annotations:anns,
     });
     const url=await Plotly.toImage({data:gd.data,layout},{format:"png",width:1200,height:630,scale:2});
@@ -1281,9 +1281,10 @@ async function fcShare(){
     }else{
       const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=file.name;
       document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),5000);
+      done="✓ Saved PNG";
     }
   }catch(e){ /* user closed the share sheet, or export failed — leave the page untouched */ }
-  finally{ btn.disabled=false; btn.textContent=old; }
+  finally{ btn.disabled=false; btn.textContent=done||old; if(done) setTimeout(()=>{btn.textContent=old;},1800); }
 }
 $("#fc-share") && $("#fc-share").addEventListener("click",fcShare);
 
