@@ -29,7 +29,7 @@ const MATCHES=[
 ["GHA","PAN",1,0,"fin","Group L","","BMO Field",""],
 ["UZB","COL",1,3,"fin","Group K","","Estadio Azteca",""],
 ["CZE","RSA",1,1,"fin","Group A","","Mercedes-Benz Stadium",""],
-["SUI","BIH",null,null,"up","Group B","","SoFi Stadium",""],
+["SUI","BIH",4,1,"fin","Group B","","SoFi Stadium",""],
 ["CAN","QAT",null,null,"up","Group B","","BC Place",""],
 ["MEX","KOR",null,null,"up","Group A","","Estadio Akron",""],
 ["USA","AUS",null,null,"up","Group D","","Lumen Field",""],
