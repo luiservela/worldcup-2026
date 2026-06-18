@@ -898,10 +898,13 @@ const vivid=cc=> cc.s>0.15
   ? {h:cc.h, s:Math.min(1,cc.s+0.3), l:Math.min(.62,Math.max(.42,cc.l))}
   : {h:cc.h, s:cc.s, l: cc.l>0.5?0.9:0.22};
 // Build a tartan marker (base + weave + per-team shape) from a team's two colours.
-function tartanMarker(cols, c, sep){
+// raw=true keeps the colours exactly as given (flag mode); otherwise vivid() punches
+// muddy crest colours into a usable, weave-legible range.
+function tartanMarker(cols, c, sep, raw){
   const o=cols.slice().sort((a,b)=>b.s-a.s);                       // more-saturated colour as the base
-  const base=vivid(o[0]);
-  const weave=vivid(o[1]||{h:(o[0].h+150)%360, s:0.75, l:0.55});
+  const adj=raw?(x=>x):vivid;
+  const base=adj(o[0]);
+  const weave=adj(o[1]||{h:(o[0].h+150)%360, s:0.75, l:0.55});
   const shape=TARTAN_SHAPES[(ALL_CODES.indexOf(c)+TARTAN_SHAPES.length)%TARTAN_SHAPES.length];
   return {color:hsl(base), line:sep, pattern:{shape, fgcolor:hsl(weave), bgcolor:hsl(base), size:10, solidity:0.55}};
 }
@@ -911,7 +914,7 @@ function barMarker(c){
   // Tartan (flag): woven from the flag's two main colours — baked, so always available.
   if(FC_COLORMODE==="tartan2"){
     const fc=(typeof FLAG_COLOR!=="undefined"&&FLAG_COLOR[c])||[];
-    return fc.length ? tartanMarker(fc, c, sep) : {color:COLOR[c], line:sep};
+    return fc.length ? tartanMarker(fc, c, sep, true) : {color:COLOR[c], line:sep};   // raw flag colours, no vivid()
   }
   const cols=CREST_COLOR[c]||[];
   if(!cols.length) return {color:COLOR[c], line:sep};
@@ -1167,7 +1170,7 @@ function placeCrests(){
       const my=plotT+(100-mk.cy)/100*(plotB-plotT);
       const src=(typeof TEAM_IMG!=="undefined"&&TEAM_IMG[mk.opp])||"";
       const inner=src?`<img src="${src}" alt="${tname(mk.opp)}" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'fcx',textContent:'${flag(mk.opp)}'}))">`:`<span class="fcx">${flag(mk.opp)}</span>`;
-      return `<a class="fc-crest fc-match-crest" href="#/team/${mk.opp}" title="vs ${tname(mk.opp)}" style="left:${mx.toFixed(1)}px;top:${my.toFixed(1)}px;width:${msz}px;height:${msz}px;z-index:300">${inner}</a>`;
+      return `<a class="fc-crest fc-match-crest" href="#/team/${mk.opp}" title="vs ${tname(mk.opp)}" style="left:${mx.toFixed(1)}px;top:${my.toFixed(1)}px;width:${msz}px;height:${msz}px;z-index:60">${inner}</a>`;
     }).join("");
   }
   host.innerHTML=html;
