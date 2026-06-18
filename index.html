@@ -897,12 +897,16 @@ function extractCrestColors(cb){
 const vivid=cc=> cc.s>0.15
   ? {h:cc.h, s:Math.min(1,cc.s+0.3), l:Math.min(.62,Math.max(.42,cc.l))}
   : {h:cc.h, s:cc.s, l: cc.l>0.5?0.9:0.22};
+// Flag mode keeps colours as-is, EXCEPT it lifts a dark *hued* colour (e.g. France's
+// navy #002654, l≈0.17) so its hue reads instead of looking black — while leaving a
+// genuinely black band (l≈0, low or any saturation but near-zero lightness) untouched.
+const flagAdj=cc=> (cc.l>0.06 && cc.l<0.26 && cc.s>0.3) ? {h:cc.h, s:cc.s, l:0.34} : cc;
 // Build a tartan marker (base + weave + per-team shape) from a team's two colours.
 // raw=true keeps the colours exactly as given (flag mode); otherwise vivid() punches
 // muddy crest colours into a usable, weave-legible range.
 function tartanMarker(cols, c, sep, raw){
   const o=cols.slice().sort((a,b)=>b.s-a.s);                       // more-saturated colour as the base
-  const adj=raw?(x=>x):vivid;
+  const adj=raw?flagAdj:vivid;
   const base=adj(o[0]);
   const weave=adj(o[1]||{h:(o[0].h+150)%360, s:0.75, l:0.55});
   const shape=TARTAN_SHAPES[(ALL_CODES.indexOf(c)+TARTAN_SHAPES.length)%TARTAN_SHAPES.length];
