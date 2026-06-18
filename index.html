@@ -1129,7 +1129,10 @@ function placeCrests(){
   const W=chart.clientWidth, H=chart.clientHeight;
   if(!W||!H){ host.innerHTML=""; return; }
   const sz=Math.round(CREST_SIZE*(W<420?0.55:W<640?0.78:1));   // scale badges down on phones
-  const plotL=FC_MARGIN.l, plotR=W-FC_MARGIN.r, plotT=FC_MARGIN.t, plotB=H-FC_MARGIN.b;
+  // Use Plotly's ACTUAL plot area (it can auto-grow a margin for the date ticks/month row)
+  // so overlaid badges land pixel-exact on the chart — e.g. a match crest sits right on its line.
+  const S=chart._fullLayout&&chart._fullLayout._size;
+  const plotL=S?S.l:FC_MARGIN.l, plotR=S?W-S.r:W-FC_MARGIN.r, plotT=S?S.t:FC_MARGIN.t, plotB=S?H-S.b:H-FC_MARGIN.b;
   // Right edge of the latest data point → its x in pixels on the date axis.
   const axS=Date.parse(fcLast.axStart), axE=Date.parse(fcLast.axEnd), lastIdx=times.length-1;
   const xPix=plotL+(Date.parse(fcLast.lastT)-axS)/(axE-axS)*(plotR-plotL);
