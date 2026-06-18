@@ -237,13 +237,20 @@
   .fc-bar-side{flex:1 1 0;display:flex;align-items:center;gap:8px;min-width:0}
   .fc-bar-right{justify-content:flex-end}
   .fc-presets{flex:0 0 auto}   /* centred: the two side zones (flex:1) balance it */
-  .fc-options{display:flex;align-items:center;gap:8px}
+  .fc-options-wrap{position:relative;display:inline-flex}
+  .fc-options{position:absolute;top:calc(100% + 8px);right:0;z-index:50;display:flex;flex-direction:column;align-items:stretch;gap:7px;
+    background:#11141f;border:1px solid var(--line-strong);border-radius:12px;padding:10px;min-width:208px;max-width:min(280px,82vw);
+    box-shadow:0 18px 44px -14px rgba(0,0,0,.78)}
   .fc-options[hidden]{display:none}
+  .fc-options .fc-colorbtn{width:100%;text-align:left}
+  .fc-options-btn .caret{display:inline-block;margin-left:6px;font-size:9px;transition:transform .16s}
+  .fc-options-wrap.open .caret{transform:rotate(180deg)}
+  .fc-options-wrap.open #fc-options-btn{color:var(--txt);border-color:var(--line-strong);background:rgba(255,255,255,.1)}
   @media(max-width:640px){ .fc-bar-side{flex:1 1 100%} .fc-bar-right{justify-content:flex-start} }
   .fc-colorbtn{font-family:inherit;font-size:12px;font-weight:700;color:var(--muted);background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:10px;padding:8px 12px;cursor:pointer;transition:.16s}
   .fc-colorbtn:hover{color:var(--txt);border-color:var(--line-strong)}
-  .fc-crest-ctl{display:inline-flex;align-items:center;gap:7px;font-size:11px;color:var(--muted-2)}
-  .fc-crest-ctl input[type=range]{width:92px;accent-color:var(--gold)}
+  .fc-crest-ctl{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:11px;color:var(--muted-2);padding:2px 2px}
+  .fc-crest-ctl input[type=range]{width:96px;accent-color:var(--gold)}
   /* Flex column: the chart takes whatever height is left after the topbar,
      toolbar and movers strip — at every width, however the toolbar wraps —
      instead of a fixed-px calc that drifts out of sync. */
@@ -276,6 +283,7 @@
   .fc-crest:hover{transform:translate(-50%,-50%) scale(1.14);border-color:var(--gold);z-index:9999!important}
   .fc-crest img{width:84%;height:84%;object-fit:contain;display:block}
   .fc-crest .fcx{font-size:60%;line-height:1}
+  .fc-match-crest{border-width:1.5px;border-color:rgba(255,255,255,.6);box-shadow:0 2px 8px rgba(0,0,0,.65)}
   .fc-fallback{display:none;padding:18px 6px 6px}
   .fc-fb-row{display:flex;align-items:center;gap:10px;margin:7px 0;font-size:12px}
   .fc-fb-row .fb-name{width:150px;flex:0 0 auto;color:var(--txt);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -440,11 +448,14 @@
     </div>
     <div class="fc-bar-side fc-bar-right">
       <button id="fc-share" class="fc-colorbtn" title="Share this chart as an image">📤 Share</button>
-      <button id="fc-options-btn" class="fc-colorbtn" title="Display options" aria-expanded="false">⚙️ Options</button>
-      <div class="fc-options" id="fc-options" hidden>
-        <button id="fc-colormode" class="fc-colorbtn" title="Bar colours: Vibrant → Team → Complementary → Tartan">🎨 Tartan</button>
-        <button id="fc-matches" class="fc-colorbtn" title="Mark each played match of the shown teams: a red dotted line at kick-off-end, with the opponent's flag inside that team's band">🎯 Show matches</button>
-        <label class="fc-crest-ctl" title="Crest size">⬤ <input id="fc-crest-size" type="range" min="14" max="84" value="66" /></label>
+      <div class="fc-options-wrap">
+        <button id="fc-options-btn" class="fc-colorbtn fc-options-btn" title="Display options" aria-expanded="false" aria-controls="fc-options">⚙️ Options <span class="caret">▾</span></button>
+        <div class="fc-options" id="fc-options" role="menu" hidden>
+          <button id="fc-colormode" class="fc-colorbtn" title="Bar colours: Vibrant → Team → Complementary → Tartan">🎨 Tartan</button>
+          <button id="fc-matches" class="fc-colorbtn" title="Mark each played match of the shown teams: a black dotted line within that team's band at the match's end-time, with the opponent's crest">🎯 Show matches</button>
+          <label class="fc-crest-ctl" title="Size of the team crest badges at the right edge">Crest size <input id="fc-crest-size" type="range" min="14" max="84" value="66" /></label>
+          <label class="fc-crest-ctl" title="Size of the opponent crests shown by ‘Show matches’">Match crest size <input id="fc-match-crest-size" type="range" min="14" max="48" value="28" /></label>
+        </div>
       </div>
     </div>
   </div>
@@ -909,7 +920,7 @@ let fcVisible=new Set();             // codes currently shown
 let fcSyncing=false, fcListenerReady=false;   // legend↔selection sync (re-normalize on toggle)
 let _fcTapC=null,_fcTapT=0;                   // two-tap "open team" state on touch screens
 const FC_MARGIN={l:6,r:14,t:10,b:52};         // must match the Plotly layout margins (for crest placement)
-let CREST_SIZE=66, fcLast=null;               // circular crest badges: adjustable size + last render data
+let CREST_SIZE=66, MATCH_CREST_SIZE=28, fcLast=null;   // circular crest badges (right-edge + "Show matches"): adjustable sizes + last render data
 const fcTitle=c=>`${flag(c)} ${tname(c)}`;
 const lastOf=a=>a&&a.length?a[a.length-1]:0;
 
@@ -1051,25 +1062,24 @@ function renderForecast(tl){
       m=new Date(Date.UTC(m.getUTCFullYear(),m.getUTCMonth()+1,1));
     } }
   const fcDtick = cw>=700?2*DAY : cw>=480?4*DAY : 7*DAY;
-  // "Show matches": for each shown team, a red dotted line at each played match's
-  // end-time + the opponent's flag placed at the mid-height of that team's band.
-  const matchShapes=[], matchAnns=[];
+  // "Show matches": for each shown team, a short black dotted line spanning ONLY that
+  // team's band at the match's end-time, with the opponent's crest at the band midpoint
+  // (crests drawn as HTML badges in placeCrests, so they get a clean border).
+  const matchShapes=[], matchMarks=[];
   if(FC_MATCHES && typeof EVENT_HISTORY!=="undefined" && EVENT_HISTORY.slots){
     const tIdx=iso=>{ const tt=Date.parse(iso); let lo=0; for(let k=0;k<times.length;k++){ if(Date.parse(times[k])<=tt) lo=k; else break; } return lo; };
-    const lineAt=new Set();
     for(const s of EVENT_HISTORY.slots){
       const i=tIdx(s.t);
       for(const m of (s.matches||[])){
         for(const [self,opp] of [[m.hc,m.ac],[m.ac,m.hc]]){
           if(!fcVisible.has(self)) continue;
           let below=0; for(const rc of ranked){ if(rc===self) break; below+=M[rc][i]||0; }   // stack height under this team's band
-          matchAnns.push({x:s.t, y:below+(M[self][i]||0)/2, xref:"x", yref:"y", text:flag(opp), showarrow:false, font:{size:13},
-            bgcolor:"rgba(6,7,13,.5)", bordercolor:"rgba(229,37,74,.7)", borderwidth:1, borderpad:1});
+          const share=M[self][i]||0;
+          matchShapes.push({type:"line", xref:"x", yref:"y", x0:s.t, x1:s.t, y0:below, y1:below+share, line:{color:"rgba(0,0,0,.8)", width:1.6, dash:"dot"}});
+          matchMarks.push({opp, t:s.t, cy:below+share/2});
         }
-        if(fcVisible.has(m.hc)||fcVisible.has(m.ac)) lineAt.add(s.t);
       }
     }
-    for(const t of lineAt) matchShapes.push({type:"line", xref:"x", yref:"paper", x0:t, x1:t, y0:0, y1:1, line:{color:"rgba(229,37,74,.85)", width:1, dash:"dot"}});
   }
   const layout={
     paper_bgcolor:"rgba(0,0,0,0)", plot_bgcolor:"rgba(255,255,255,.022)",
@@ -1082,10 +1092,10 @@ function renderForecast(tl){
       showgrid:true, gridcolor:"rgba(255,255,255,.07)", zeroline:false, showline:true, linecolor:"rgba(255,255,255,.14)", mirror:true, fixedrange:true},
     showlegend:fcLegend, legend:{bgcolor:"rgba(0,0,0,0)", font:{size:11}, traceorder:"normal"},
     shapes:[{type:"line", xref:"x", yref:"paper", x0:lastT, x1:lastT, y0:0, y1:1, line:{color:"rgba(245,197,66,.5)", width:1, dash:"dot"}}].concat(matchShapes),
-    annotations:[{x:midFuture, y:0.5, xref:"x", yref:"paper", text:"Rest of tournament — fills in as matches play", showarrow:false, font:{size:12,color:"#565d76"}}].concat(monthAnns, matchAnns),
+    annotations:[{x:midFuture, y:0.5, xref:"x", yref:"paper", text:"Rest of tournament — fills in as matches play", showarrow:false, font:{size:12,color:"#565d76"}}].concat(monthAnns),
   };
   Plotly.react("fc-chart", traces, layout, {displayModeBar:false, responsive:true});
-  fcLast={times, M, ranked, axStart, axEnd, lastT}; setTimeout(placeCrests,0);   // circular crest badges overlay
+  fcLast={times, M, ranked, axStart, axEnd, lastT, matchMarks}; setTimeout(placeCrests,0);   // circular crest badges overlay
   const dl=$("#fc-teamlist"); if(dl) dl.innerHTML=ranked.map(c=>`<option value="${tname(c)}">`).join("");
   // Toggling teams via the legend changes the selection → re-normalize to 100%.
   const gd=document.getElementById("fc-chart");
@@ -1132,12 +1142,24 @@ function placeCrests(){
     }
     cum+=share;
   }
-  host.innerHTML=items.map(it=>{
+  let html=items.map(it=>{
     const src=(typeof TEAM_IMG!=="undefined"&&TEAM_IMG[it.c])||"";
     const z=100+Math.round(it.share*5);   // higher win-share rendered on top
     const inner=src?`<img src="${src}" alt="${tname(it.c)}" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'fcx',textContent:'${flag(it.c)}'}))">`:`<span class="fcx">${flag(it.c)}</span>`;
     return `<a class="fc-crest" href="#/team/${it.c}" title="${tname(it.c)} — ${it.share.toFixed(1)}% · open team" style="left:${xPix.toFixed(1)}px;top:${it.yPix.toFixed(1)}px;width:${sz}px;height:${sz}px;z-index:${z}">${inner}</a>`;
   }).join("");
+  // "Show matches": opponent crests placed inside each shown team's band at match time.
+  if(fcLast.matchMarks && fcLast.matchMarks.length){
+    const msz=Math.round(MATCH_CREST_SIZE*(W<420?0.62:W<640?0.82:1));
+    html+=fcLast.matchMarks.map(mk=>{
+      const mx=plotL+(Date.parse(mk.t)-axS)/(axE-axS)*(plotR-plotL);
+      const my=plotT+(100-mk.cy)/100*(plotB-plotT);
+      const src=(typeof TEAM_IMG!=="undefined"&&TEAM_IMG[mk.opp])||"";
+      const inner=src?`<img src="${src}" alt="${tname(mk.opp)}" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'fcx',textContent:'${flag(mk.opp)}'}))">`:`<span class="fcx">${flag(mk.opp)}</span>`;
+      return `<a class="fc-crest fc-match-crest" href="#/team/${mk.opp}" title="vs ${tname(mk.opp)}" style="left:${mx.toFixed(1)}px;top:${my.toFixed(1)}px;width:${msz}px;height:${msz}px;z-index:300">${inner}</a>`;
+    }).join("");
+  }
+  host.innerHTML=html;
 }
 const DAY=86400000;
 
@@ -1721,12 +1743,20 @@ updateColorBtn();
 const _mb=$("#fc-matches");
 if(_mb) _mb.addEventListener("click",()=>{ FC_MATCHES=!FC_MATCHES; _mb.textContent=FC_MATCHES?"🎯 Hide matches":"🎯 Show matches"; _mb.classList.toggle("on",FC_MATCHES); renderForecast(); });
 
-// ⚙️ Options disclosure: reveal the palette toggle + crest-size slider.
-const _ob=$("#fc-options-btn"), _op=$("#fc-options");
-if(_ob&&_op) _ob.addEventListener("click",()=>{ _op.hidden=!_op.hidden; _ob.setAttribute("aria-expanded",String(!_op.hidden)); });
-// Crest-size slider.
+// ⚙️ Options dropdown: a floating panel that doesn't shift the page; toggles open/closed
+// on the button (caret flips, button highlights), and closes on outside-click or Escape.
+const _ob=$("#fc-options-btn"), _op=$("#fc-options"), _ow=_ob&&_ob.closest(".fc-options-wrap");
+function setOptions(open){ if(!_op) return; _op.hidden=!open; _ob.setAttribute("aria-expanded",String(open)); if(_ow) _ow.classList.toggle("open",open); }
+if(_ob&&_op){
+  _ob.addEventListener("click",e=>{ e.stopPropagation(); setOptions(_op.hidden); });
+  document.addEventListener("click",e=>{ if(_ow && !_ow.contains(e.target)) setOptions(false); });
+  document.addEventListener("keydown",e=>{ if(e.key==="Escape") setOptions(false); });
+}
+// Crest-size sliders: right-edge team badges + "Show matches" opponent crests.
 const _cs=$("#fc-crest-size");
 if(_cs){ CREST_SIZE=+_cs.value||CREST_SIZE; _cs.addEventListener("input",e=>{ CREST_SIZE=+e.target.value; placeCrests(); }); }
+const _ms=$("#fc-match-crest-size");
+if(_ms){ MATCH_CREST_SIZE=+_ms.value||MATCH_CREST_SIZE; _ms.addEventListener("input",e=>{ MATCH_CREST_SIZE=+e.target.value; placeCrests(); }); }
 
 // Extract crest colours; re-render once ready (the default Tartan mode needs them).
 extractCrestColors(()=>{ if(FC_COLORMODE!=="vibrant") renderForecast(); });
