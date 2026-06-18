@@ -2,7 +2,10 @@ name: Results snapshot
 
 # Re-scrapes Wikipedia's fixtures every few hours and bakes finished scores +
 # resolved knockout teams into schedule.js, so results are self-owned and persist
-# even if the live score feed goes away.
+# even if the live score feed goes away. Then refreshes the chart archives derived
+# from it (event-history.js, odds-hourly.js) so the win-probability charts stay in
+# lockstep with the results — the archive refresh is best-effort and never blocks
+# the durable schedule commit.
 on:
   schedule:
     - cron: "20 * * * *"   # hourly at :20 — keep committed scores fresh during the tournament
@@ -25,11 +28,15 @@ jobs:
           node-version: "22"
       - name: Regenerate schedule from Wikipedia
         run: node scripts/results-snapshot.mjs
+      - name: Refresh chart archives from the fresh schedule (best-effort — needs Polymarket)
+        run: |
+          node scripts/event-history.mjs || echo "event-history skipped (Polymarket unavailable?)"
+          node scripts/odds-hourly.mjs   || echo "odds-hourly skipped (Polymarket unavailable?)"
       - name: Commit if changed
         run: |
           git config user.name "wc26-results-bot"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add schedule.js
+          git add schedule.js event-history.js event-history.json odds-hourly.js odds-hourly.json
           if git diff --cached --quiet; then
             echo "No change."; exit 0
           fi
