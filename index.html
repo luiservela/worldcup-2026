@@ -451,7 +451,7 @@
       <div class="fc-options-wrap">
         <button id="fc-options-btn" class="fc-colorbtn fc-options-btn" title="Display options" aria-expanded="false" aria-controls="fc-options">⚙️ Options <span class="caret">▾</span></button>
         <div class="fc-options" id="fc-options" role="menu" hidden>
-          <button id="fc-colormode" class="fc-colorbtn" title="Bar colours: Vibrant → Team → Complementary → Tartan">🎨 Tartan</button>
+          <button id="fc-colormode" class="fc-colorbtn" title="Bar colours: Vibrant → Team → Complementary → Tartan (crest) → Tartan (flag)">🎨 Tartan (crest)</button>
           <button id="fc-matches" class="fc-colorbtn" title="Mark each played match of the shown teams: a black dotted line within that team's band at the match's end-time, with the opponent's crest">🎯 Show matches</button>
           <label class="fc-crest-ctl" title="Size of the team crest badges at the right edge">Crest size <input id="fc-crest-size" type="range" min="14" max="84" value="66" /></label>
           <label class="fc-crest-ctl" title="Size of the opponent crests shown by ‘Show matches’">Match crest size <input id="fc-match-crest-size" type="range" min="14" max="48" value="28" /></label>
@@ -576,6 +576,7 @@
      Classic scripts: they run in order, before the inline app script below. -->
 <script src="schedule.js"></script>
 <script src="images.js"></script>
+<script src="flag-colors.js"></script>
 <script src="history.js"></script>
 <script src="odds-hourly.js"></script>
 <script src="event-history.js"></script>
@@ -896,24 +897,31 @@ function extractCrestColors(cb){
 const vivid=cc=> cc.s>0.15
   ? {h:cc.h, s:Math.min(1,cc.s+0.3), l:Math.min(.62,Math.max(.42,cc.l))}
   : {h:cc.h, s:cc.s, l: cc.l>0.5?0.9:0.22};
+// Build a tartan marker (base + weave + per-team shape) from a team's two colours.
+function tartanMarker(cols, c, sep){
+  const o=cols.slice().sort((a,b)=>b.s-a.s);                       // more-saturated colour as the base
+  const base=vivid(o[0]);
+  const weave=vivid(o[1]||{h:(o[0].h+150)%360, s:0.75, l:0.55});
+  const shape=TARTAN_SHAPES[(ALL_CODES.indexOf(c)+TARTAN_SHAPES.length)%TARTAN_SHAPES.length];
+  return {color:hsl(base), line:sep, pattern:{shape, fgcolor:hsl(weave), bgcolor:hsl(base), size:10, solidity:0.55}};
+}
 function barMarker(c){
   const sep = FC_COLORMODE==="vibrant" ? {width:0} : {width:0.7,color:"rgba(6,7,13,.5)"};
   if(FC_COLORMODE==="vibrant") return {color:COLOR[c], line:sep};
+  // Tartan (flag): woven from the flag's two main colours — baked, so always available.
+  if(FC_COLORMODE==="tartan2"){
+    const fc=(typeof FLAG_COLOR!=="undefined"&&FLAG_COLOR[c])||[];
+    return fc.length ? tartanMarker(fc, c, sep) : {color:COLOR[c], line:sep};
+  }
   const cols=CREST_COLOR[c]||[];
   if(!cols.length) return {color:COLOR[c], line:sep};
   const chrom=cols.slice().sort((a,b)=>b.s-a.s)[0];                 // most colourful of the two
   if(FC_COLORMODE==="team") return chrom.s<0.15?{color:COLOR[c],line:sep}:{color:hsl(vivid(chrom)), line:sep};
   if(FC_COLORMODE==="comp"){ if(chrom.s<0.15) return {color:COLOR[c],line:sep}; const v=vivid(chrom); return {color:hsl({...v,h:(v.h+180)%360}), line:sep}; }
-  if(FC_COLORMODE==="tartan"){
-    const ordered=cols.slice().sort((a,b)=>b.s-a.s);               // more-saturated colour as the base
-    const base=vivid(ordered[0]);
-    const weave=vivid(ordered[1]||{h:(ordered[0].h+150)%360, s:0.75, l:0.55});
-    const shape=TARTAN_SHAPES[(ALL_CODES.indexOf(c)+TARTAN_SHAPES.length)%TARTAN_SHAPES.length];
-    return {color:hsl(base), line:sep, pattern:{shape, fgcolor:hsl(weave), bgcolor:hsl(base), size:10, solidity:0.55}};
-  }
+  if(FC_COLORMODE==="tartan") return tartanMarker(cols, c, sep);   // woven from the crest's two main colours
   return {color:COLOR[c], line:sep};
 }
-function updateColorBtn(){ const b=$("#fc-colormode"); if(b) b.textContent="🎨 "+({vibrant:"Vibrant",team:"Team",comp:"Complementary",tartan:"Tartan"}[FC_COLORMODE]); }
+function updateColorBtn(){ const b=$("#fc-colormode"); if(b) b.textContent="🎨 "+({vibrant:"Vibrant",team:"Team",comp:"Complementary",tartan:"Tartan (crest)",tartan2:"Tartan (flag)"}[FC_COLORMODE]); }
 
 let fcTimeline=null;                 // {dates, series:{code:[...]}, live, single}
 let fcVisible=new Set();             // codes currently shown
@@ -1735,7 +1743,7 @@ let _fcRz; window.addEventListener("resize",()=>{ clearTimeout(_fcRz); _fcRz=set
 // Bar-colour mode toggle: Vibrant → Team → Complement.
 const _cm=$("#fc-colormode");
 if(_cm) _cm.addEventListener("click",()=>{
-  const m=["vibrant","team","comp","tartan"]; FC_COLORMODE=m[(m.indexOf(FC_COLORMODE)+1)%m.length]; updateColorBtn();
+  const m=["vibrant","team","comp","tartan","tartan2"]; FC_COLORMODE=m[(m.indexOf(FC_COLORMODE)+1)%m.length]; updateColorBtn();
   if(FC_COLORMODE!=="vibrant" && !crestColorsReady) extractCrestColors(()=>renderForecast());
   renderForecast();
 });
