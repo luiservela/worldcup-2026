@@ -1251,11 +1251,13 @@ function fcShareAnnotations(){
 }
 async function fcShare(){
   const btn=$("#fc-share"), gd=document.getElementById("fc-chart");
-  if(typeof Plotly==="undefined"||!gd||!gd.data){      // no chart (offline fallback): share the link itself
-    if(navigator.share){ try{ await navigator.share({title:document.title,url:SITE_URL}); }catch(e){} }
+  const old=btn?btn.textContent:"📤 Share", flash=(t,ms)=>{ if(btn){ btn.textContent=t; setTimeout(()=>{btn.textContent=old;},ms||1800); } };
+  const download=(blob,name)=>{ const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),5000); };
+  if(typeof Plotly==="undefined"||!gd||!gd.data||!gd.data.length){   // no chart yet: share or copy the link
+    try{ if(navigator.share){ await navigator.share({title:document.title,url:SITE_URL}); } else { await navigator.clipboard.writeText(SITE_URL); flash("✓ Link copied"); } }catch(e){}
     return;
   }
-  const old=btn.textContent; btn.disabled=true; btn.textContent="📤 Rendering…"; let done="";
+  btn.disabled=true; btn.textContent="📤 Rendering…"; let msg="⚠ Couldn’t export — try again";
   try{
     const today=new Date().toISOString().slice(0,10);
     const stamp=new Intl.DateTimeFormat("en-GB",{day:"numeric",month:"long",year:"numeric"}).format(new Date());
@@ -1276,15 +1278,15 @@ async function fcShare(){
     const url=await Plotly.toImage({data:gd.data,layout},{format:"png",width:1200,height:630,scale:2});
     const blob=await (await fetch(url)).blob();
     const file=new File([blob],`worldcup2026-odds-${today}.png`,{type:"image/png"});
+    let shared=false;
     if(navigator.canShare && navigator.canShare({files:[file]})){
-      await navigator.share({files:[file], title:"World Cup 2026 — live title odds", text:"Who wins the World Cup? Live market odds → "+SITE_URL});
-    }else{
-      const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=file.name;
-      document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),5000);
-      done="✓ Saved PNG";
+      try{ await navigator.share({files:[file], title:"World Cup 2026 — live title odds", text:"Who wins the World Cup? Live market odds → "+SITE_URL}); shared=true; }
+      catch(e){ shared = !!(e && e.name==="AbortError"); }   // user cancelled = done; any other error → fall through to download
     }
-  }catch(e){ /* user closed the share sheet, or export failed — leave the page untouched */ }
-  finally{ btn.disabled=false; btn.textContent=done||old; if(done) setTimeout(()=>{btn.textContent=old;},1800); }
+    if(!shared){ download(blob,file.name); }                 // desktop / share-unsupported / share-failed → save the PNG
+    msg="✓ Saved PNG";
+  }catch(e){ console.error("[fcShare] export failed:", e); }   // surface the real cause instead of swallowing it
+  finally{ btn.disabled=false; flash(msg); }
 }
 $("#fc-share") && $("#fc-share").addEventListener("click",fcShare);
 
