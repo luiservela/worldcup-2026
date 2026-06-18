@@ -26,7 +26,7 @@ const MATCHES=[
 ["AUT","JOR",3,1,"fin","Group J","","Levi's Stadium",""],
 ["POR","COD",1,1,"fin","Group K","","NRG Stadium",""],
 ["ENG","CRO",4,2,"fin","Group L","","AT&T Stadium",""],
-["GHA","PAN",null,null,"up","Group L","","BMO Field",""],
+["GHA","PAN",1,0,"fin","Group L","","BMO Field",""],
 ["UZB","COL",null,null,"up","Group K","","Estadio Azteca",""],
 ["CZE","RSA",null,null,"up","Group A","","Mercedes-Benz Stadium",""],
 ["SUI","BIH",null,null,"up","Group B","","SoFi Stadium",""],
