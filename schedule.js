@@ -32,7 +32,7 @@ const MATCHES=[
 ["SUI","BIH",4,1,"fin","Group B","","SoFi Stadium",""],
 ["CAN","QAT",6,0,"fin","Group B","","BC Place",""],
 ["MEX","KOR",1,0,"fin","Group A","","Estadio Akron",""],
-["USA","AUS",null,null,"up","Group D","","Lumen Field",""],
+["USA","AUS",2,0,"fin","Group D","","Lumen Field",""],
 ["SCO","MAR",null,null,"up","Group C","","Gillette Stadium",""],
 ["BRA","HAI",null,null,"up","Group C","","Lincoln Financial Field",""],
 ["TUR","PAR",null,null,"up","Group D","","Levi's Stadium",""],
