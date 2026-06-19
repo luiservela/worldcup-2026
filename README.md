@@ -12,21 +12,24 @@ deployed on GitHub Pages, with its data kept current by automated jobs.
 A dark, glassy interface with a sticky banner (emblem · centered nav · a live/next-kickoff
 status chip) and a hash-routed set of pages:
 
-- **Odds** (landing) — the hero. A daily **stacked-bar chart of win-probability** for
-  all 48 nations, spanning kickoff (11 Jun) → final (19 Jul). Each day's stack is
-  re-normalized over the **selected** teams to total 100%; circular **crest badges**
-  sit at the right edge of the latest bar; future days are blank on a ruled canvas.
-  Presets **Top 3 / 5 / 10 / All** + a team search, and an **⚙️ Options** disclosure
-  with a colour-palette toggle (Vibrant · Team · Complementary · **Tartan**, derived
-  from each crest's two dominant colours) and a crest-size slider.
+- **Odds** (landing) — the hero. An **hourly stacked-area chart of win-probability** for
+  all 48 nations, spanning kickoff (11 Jun) → final (19 Jul) with the future left empty
+  ahead of the latest data. The stack is re-normalized over the **selected** teams to
+  total 100%; circular **crest badges** sit at the right edge. Presets **Top 3 / 5 / 10 /
+  All** + team search, and an **⚙️ Options** dropdown with: a colour-palette toggle
+  (Vibrant · Team · Complementary · **Tartan (crest)** · **Tartan (flag)** — tartans are a
+  two-colour woven `fillpattern` whose shape also varies per team), crest-size sliders, and
+  a **Show matches** toggle (marks each played match of the shown teams with a line + the
+  opponent's crest inside that team's band). A **📤 Share** button exports the chart as a PNG.
 - **Matches** — the full **104-match schedule** in one chronological column: each row
   shows both teams (flags link to team pages), kickoff in **Luxembourg time**, venue
   (links to its stadium), and either the **score** (played) or each team's
   head-to-head **title-win %** (upcoming). Knockout games show as bracket slots until
   decided. Filters: by team, and all / upcoming / played.
 - **Groups** — all 12 standings tables, computed live from results; rows link to teams.
-- **Teams** — grid of crests → **team page** (crest, group standings, fixtures, full
-  squad sorted by caps).
+- **Teams** — grid of crests → **team page** (crest, group standings, fixtures, a
+  **"Road to the title"** line of the team's win-the-cup % through its matches, and the
+  full squad sorted by caps).
 - **Players** — every player (~1,248) searchable/filterable by team & position, sortable
   by caps / name / age → **player page** (photo where available, club, age, caps,
   derived squad context, teammates).
@@ -40,8 +43,12 @@ two GitHub Actions keep fresh:
 
 - **`history.js`** — daily win-probability archive (from **Polymarket**). Updated daily
   by `odds-snapshot.yml`.
+- **`odds-hourly.js`** / **`event-history.js`** — the **hourly** win-prob tape (hero area)
+  and the **per-match** win-probs (team road-lines + "Show matches"), both from Polymarket.
 - **`schedule.js`** — the 104-match schedule, scores, and knockout teams (parsed from
-  **Wikipedia**). Updated every ~3h by `results-snapshot.yml`.
+  **Wikipedia**). Refreshed **hourly** by `results-snapshot.yml`, which then also
+  regenerates `odds-hourly.js` + `event-history.js` so the charts stay in lockstep.
+- **`flag-colors.js`** — each flag's two main colours (for "Tartan (flag)"); a one-off build.
 - **`players.js`**, **`images.js`**, **`player-img.js`**, `assets/crests/` — squads,
   stadium photos, player photos, and self-hosted crests.
 
