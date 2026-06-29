@@ -82,7 +82,7 @@ const FIX={"MEX-RSA":["2026-06-11T19:00:00Z","Estadio Azteca"],"KOR-CZE":["2026-
 
 const KNOCKOUT=[
 {utc:"2026-06-28T19:00:00Z",round:"Round of 32",vid:"sofi-stadium",venue:"SoFi Stadium",home:"South Africa",away:"Canada",hc:"RSA",ac:"CAN",hs:0,as:1},
-{utc:"2026-06-29T17:00:00Z",round:"Round of 32",vid:"nrg-stadium",venue:"NRG Stadium",home:"Brazil",away:"Japan",hc:"BRA",ac:"JPN",hs:null,as:null},
+{utc:"2026-06-29T17:00:00Z",round:"Round of 32",vid:"nrg-stadium",venue:"NRG Stadium",home:"Brazil",away:"Japan",hc:"BRA",ac:"JPN",hs:2,as:1},
 {utc:"2026-06-29T20:30:00Z",round:"Round of 32",vid:"gillette-stadium",venue:"Gillette Stadium",home:"Germany",away:"Paraguay",hc:"GER",ac:"PAR",hs:null,as:null},
 {utc:"2026-06-30T01:00:00Z",round:"Round of 32",vid:"estadio-bbva",venue:"Estadio BBVA",home:"Netherlands",away:"Morocco",hc:"NED",ac:"MAR",hs:null,as:null},
 {utc:"2026-06-30T17:00:00Z",round:"Round of 32",vid:"att-stadium",venue:"AT&T Stadium",home:"Ivory Coast",away:"Norway",hc:"CIV",ac:"NOR",hs:null,as:null},
@@ -99,7 +99,7 @@ const KNOCKOUT=[
 {utc:"2026-07-04T01:30:00Z",round:"Round of 32",vid:"arrowhead-stadium",venue:"Arrowhead Stadium",home:"Colombia",away:"Ghana",hc:"COL",ac:"GHA",hs:null,as:null},
 {utc:"2026-07-04T17:00:00Z",round:"Round of 16",vid:"nrg-stadium",venue:"NRG Stadium",home:"Canada",away:"Winner Match 75",hc:"CAN",ac:null,hs:null,as:null},
 {utc:"2026-07-04T21:00:00Z",round:"Round of 16",vid:"lincoln-financial-field",venue:"Lincoln Financial Field",home:"Winner Match 74",away:"Winner Match 77",hc:null,ac:null,hs:null,as:null},
-{utc:"2026-07-05T20:00:00Z",round:"Round of 16",vid:"metlife-stadium",venue:"MetLife Stadium",home:"Winner Match 76",away:"Winner Match 78",hc:null,ac:null,hs:null,as:null},
+{utc:"2026-07-05T20:00:00Z",round:"Round of 16",vid:"metlife-stadium",venue:"MetLife Stadium",home:"Brazil",away:"Winner Match 78",hc:"BRA",ac:null,hs:null,as:null},
 {utc:"2026-07-06T00:00:00Z",round:"Round of 16",vid:"estadio-azteca",venue:"Estadio Azteca",home:"Winner Match 79",away:"Winner Match 80",hc:null,ac:null,hs:null,as:null},
 {utc:"2026-07-06T19:00:00Z",round:"Round of 16",vid:"att-stadium",venue:"AT&T Stadium",home:"Winner Match 83",away:"Winner Match 84",hc:null,ac:null,hs:null,as:null},
 {utc:"2026-07-07T00:00:00Z",round:"Round of 16",vid:"lumen-field",venue:"Lumen Field",home:"Winner Match 81",away:"Winner Match 82",hc:null,ac:null,hs:null,as:null},
