@@ -100,7 +100,7 @@ const KNOCKOUT=[
 {utc:"2026-07-04T17:00:00Z",round:"Round of 16",vid:"nrg-stadium",venue:"NRG Stadium",home:"Canada",away:"Morocco",hc:"CAN",ac:"MAR",hs:null,as:null},
 {utc:"2026-07-04T21:00:00Z",round:"Round of 16",vid:"lincoln-financial-field",venue:"Lincoln Financial Field",home:"Paraguay",away:"France",hc:"PAR",ac:"FRA",hs:null,as:null},
 {utc:"2026-07-05T20:00:00Z",round:"Round of 16",vid:"metlife-stadium",venue:"MetLife Stadium",home:"Brazil",away:"Norway",hc:"BRA",ac:"NOR",hs:null,as:null},
-{utc:"2026-07-06T01:00:00Z",round:"Round of 16",vid:"estadio-azteca",venue:"Estadio Azteca",home:"Mexico",away:"England",hc:"MEX",ac:"ENG",hs:null,as:null},
+{utc:"2026-07-06T00:00:00Z",round:"Round of 16",vid:"estadio-azteca",venue:"Estadio Azteca",home:"Mexico",away:"England",hc:"MEX",ac:"ENG",hs:null,as:null},
 {utc:"2026-07-06T19:00:00Z",round:"Round of 16",vid:"att-stadium",venue:"AT&T Stadium",home:"Winner Match 83",away:"Winner Match 84",hc:null,ac:null,hs:null,as:null},
 {utc:"2026-07-07T00:00:00Z",round:"Round of 16",vid:"lumen-field",venue:"Lumen Field",home:"Winner Match 81",away:"Winner Match 82",hc:null,ac:null,hs:null,as:null},
 {utc:"2026-07-07T16:00:00Z",round:"Round of 16",vid:"mercedes-benz-stadium",venue:"Mercedes-Benz Stadium",home:"Winner Match 86",away:"Winner Match 88",hc:null,ac:null,hs:null,as:null},
