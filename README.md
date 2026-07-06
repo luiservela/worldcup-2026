@@ -28,9 +28,12 @@ status chip) and a hash-routed set of pages:
 - **Match pages** (`#/match/<id>`) — team A on the left, team B on the right (crest, group
   position, form, title chance, full fixture list), and the big number centre-top: match
   **odds** (upcoming), the **score** (finished), or both (live).
-- **Bracket** — the knockout stage as a **circular net**: 32 teams on the outer ring, then
-  16 → 8 → 4 → the final pair at the centre (champion's crest once decided). Each match
-  shows its score or live Polymarket odds; hover for details, click to open the match page.
+- **Bracket** — the knockout stage as a **circular net** filling the screen: 32 teams on
+  the outer ring, then 16 → 8 → 4 → the final at the centre. Each match is a scorebox
+  (both crests + the score, or live Polymarket odds) laid along its ring; the winner's
+  gold line runs inward to the next round (radial/arc wiring only, no diagonals), the
+  champion's crest takes the centre once decided. Hover for details, click to open the
+  match page.
 - **Groups** — all 12 standings tables, computed live from results; rows link to teams.
 - **Teams** — grid of crests → **team page** (crest, group standings, fixtures, and a
   **"Road to the title"** line of the team's win-the-cup % through its matches).

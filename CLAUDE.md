@@ -26,10 +26,18 @@ it also has Matches (each linking to a **per-match page** with Polymarket odds),
   position, form, title chance, fixtures), centre-top big number — match **odds**
   (upcoming, from `MATCH_ODDS` with a title-odds fallback), **score** (finished),
   or both (live).
-- **Bracket** (`renderBracket`): the knockout stage as a radial SVG net — 32 teams
-  on the outer ring collapsing to the final pair at the centre. The tree is derived
-  per side: resolved teams matched to the previous round, else the "Winner/Loser
-  Match N" labels. Pills show score / odds / date; everything links to match pages.
+- **Bracket** (`renderBracket`): the knockout stage as a radial SVG net (1200
+  viewBox, full-viewport height). Each MATCH is one **tangent-rotated scorebox** —
+  `[crest] score/odds [crest]`, crest `<image>`s kept unrotated — on its round's
+  ring (R32 545 → SF 165 → final at the centre; crests 56→96px). Wires are
+  **polar-only** (radial → mid-radius arc → radial): both contestants' wires run
+  into a box, ONE gold wire (the winner's) leaves it; losers dim, the champion's
+  crest gets the gold ring in the centre box. The tree is derived per side:
+  resolved teams matched to the previous round, else the "Winner/Loser Match N"
+  labels. Every box links to its match page (native `<title>` hover detail).
+  Layout margins are tight (~4px worst case) — if you resize rings/crests/fonts,
+  re-verify with a SAT rotated-rect overlap test (see the session harness in
+  memory: `tune.mjs`).
 - **Data is loaded as globals** via `<script src>` at the **end of `<body>`**, right
   before the inline app script (moved out of `<head>` so first paint doesn't wait for
   them). Plotly is the only external lib (CDN) — the **basic** bundle, loaded with
