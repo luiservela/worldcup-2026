@@ -333,8 +333,12 @@
   }
 
   /* ---------- Knockout bracket (circular net) ---------- */
+  /* Full-bleed: the net fills the viewport height (square, so width follows). */
+  body[data-view="bracket"] main{max-width:none}
+  body[data-view="bracket"] .section-head{margin:10px 0 6px}
   .bk-wrap{display:flex;flex-direction:column;align-items:center;gap:14px}
-  #bracket-svg{width:min(96vw,860px);max-height:calc(100dvh - 200px);height:auto;display:block}
+  #bracket-svg{width:min(98vw,calc(100dvh - 175px));height:min(98vw,calc(100dvh - 175px));display:block}
+  @media(max-width:720px){ #bracket-svg{width:98vw;height:98vw} }
   .bk-match{cursor:pointer;text-decoration:none}
   .bk-pill rect{fill:rgba(6,7,13,.9);stroke:rgba(255,255,255,.25);transition:.15s}
   .bk-match:hover .bk-pill rect{stroke:var(--gold);fill:rgba(20,18,6,.95)}
@@ -1606,79 +1610,91 @@ function renderBracket(){
     const sa=span[a], sb=span[b];
     span[o.num]= sa&&sb? [Math.min(sa[0],sb[0]),Math.max(sa[1],sb[1])] : sa||sb||[0,360];
   }
-  const RING={"Round of 32":[452,21],"Round of 16":[356,26],"Quarter-final":[262,32],"Semi-final":[168,40],"Final":[76,50]};   // [team radius, crest radius]
-  const C=500, pos=(deg,r)=>{ const a=deg*Math.PI/180; return [C+r*Math.sin(a), C-r*Math.cos(a)]; };   // 0° = top, clockwise
+  // Each MATCH is one scorebox — both crests + the score/odds inside it. The two
+  // contestants' winner-wires run INTO the box; ONE wire (the winner's) leaves it.
+  // Wires are polar-only: a radial segment out, an arc along a mid-radius, and a
+  // radial segment into the parent box (no diagonals).
+  const RING={"Round of 32":[545,56,20],"Round of 16":[420,64,22],"Quarter-final":[295,74,25],"Semi-final":[165,84,28],"Final":[0,96,32]};   // [radius, crest px, font px]
+  const C=600, ROT=90;   // rotated so the two semi-final boxes sit top & bottom of the final
+  const pos=(deg,r)=>{ const a=(deg+ROT)*Math.PI/180; return [C+r*Math.sin(a), C-r*Math.cos(a)]; };
   const mid=s=>(s[0]+s[1])/2;
-  const slotAngle=(o,side)=>{ const f=feederOf(o,side); if(f&&span[f.num]) return mid(span[f.num]);
-    const s=span[o.num]||[0,360]; return side==="h"? s[0]+(s[1]-s[0])*0.25 : s[0]+(s[1]-s[0])*0.75; };
-  const targetOf={};                    // where each match's winner goes next
-  for(const rn of KO_ROUNDS.slice(1)) for(const o of rounds[rn]||[]) ["h","a"].forEach(side=>{ const f=feederOf(o,side); if(f) targetOf[f.num]={o,side}; });
+  const boxAngle=o=>mid(span[o.num]||[0,360]);
+  const parentOf={};                    // match → the match its winner feeds
+  for(const rn of KO_ROUNDS.slice(1)) for(const o of rounds[rn]||[]) ["h","a"].forEach(side=>{ const f=feederOf(o,side); if(f) parentOf[f.num]=o; });
   const esc=s=>String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;");
-  const node=(x,y,rad,code,dim)=>{
-    if(!code) return `<circle cx="${x}" cy="${y}" r="${rad}" fill="rgba(255,255,255,.03)" stroke="rgba(255,255,255,.16)" stroke-dasharray="3 3"/><text x="${x}" y="${y+rad*0.32}" text-anchor="middle" font-size="${rad}" fill="#565d76">?</text>`;
-    const src=(typeof TEAM_IMG!=="undefined"&&TEAM_IMG[code])||"", d=rad*2*0.82;
-    return `<g${dim?' class="bk-node-dim"':""}><circle cx="${x}" cy="${y}" r="${rad}" fill="#0b0e1a" stroke="rgba(255,255,255,.3)" stroke-width="1.6"/>`+
-      (src?`<image href="${src}" x="${x-d/2}" y="${y-d/2}" width="${d}" height="${d}"/>`
-          :`<text x="${x}" y="${y+rad*0.35}" text-anchor="middle" font-size="${rad}">${flag(code)}</text>`)+`</g>`;
+  // radial → arc → radial path between two polar points (centre-to-centre; boxes cover the ends)
+  const wirePath=(a1,r1,a2,r2)=>{
+    const rm=(r1+r2)/2;
+    const [x1,y1]=pos(a1,r1), [x2,y2]=pos(a1,rm), [x4,y4]=pos(a2,r2);
+    let d=a2-a1; while(d>180)d-=360; while(d<-180)d+=360;
+    if(Math.abs(d)<0.5 || r2===0) return `M ${x1.toFixed(1)} ${y1.toFixed(1)} L ${x4.toFixed(1)} ${y4.toFixed(1)}`;   // same spoke → pure radial
+    const [x3,y3]=pos(a2,rm), sweep=d>0?1:0;
+    return `M ${x1.toFixed(1)} ${y1.toFixed(1)} L ${x2.toFixed(1)} ${y2.toFixed(1)} A ${rm} ${rm} 0 0 ${sweep} ${x3.toFixed(1)} ${y3.toFixed(1)} L ${x4.toFixed(1)} ${y4.toFixed(1)}`;
   };
-  let rings="", wires="", nodes="", pills="";
-  for(const rn of KO_ROUNDS){ rings+=`<circle cx="${C}" cy="${C}" r="${RING[rn][0]}" fill="none" stroke="rgba(255,255,255,.05)"/>`; }
+  // one crest inside a scorebox (gold ring = advanced/champion, dimmed = knocked out)
+  const crestIn=(cx,cy,d,code,win,dim)=>{
+    if(!code) return `<circle cx="${cx}" cy="${cy}" r="${d/2}" fill="rgba(255,255,255,.03)" stroke="rgba(255,255,255,.2)" stroke-dasharray="3 3"/><text x="${cx}" y="${cy+d*0.17}" text-anchor="middle" font-size="${d*0.52}" fill="#565d76">?</text>`;
+    const src=(typeof TEAM_IMG!=="undefined"&&TEAM_IMG[code])||"", ir=d*0.82;
+    return `<g${dim?' class="bk-node-dim"':""}><circle cx="${cx}" cy="${cy}" r="${d/2}" fill="#0b0e1a" stroke="${win?'rgba(245,197,66,.95)':'rgba(255,255,255,.32)'}" stroke-width="${win?3:1.6}"/>`+
+      (src?`<image href="${src}" x="${cx-ir/2}" y="${cy-ir/2}" width="${ir}" height="${ir}"/>`
+          :`<text x="${cx}" y="${cy+d*0.18}" text-anchor="middle" font-size="${d*0.52}">${flag(code)}</text>`)+`</g>`;
+  };
+  let rings="", wires="", boxes="";
+  for(const rn of KO_ROUNDS.slice(0,4)){ rings+=`<circle cx="${C}" cy="${C}" r="${RING[rn][0]}" fill="none" stroke="rgba(255,255,255,.05)"/>`; }
   for(const rn of KO_ROUNDS) for(const o of rounds[rn]||[]){
-    const [r,rad]=RING[rn], k=o.k;
-    const aH=slotAngle(o,"h"), aA=slotAngle(o,"a");
-    const [hx,hy]=pos(aH,r), [ax,ay]=pos(aA,r);
+    const [r,crest,fs]=RING[rn], k=o.k;
+    const ang=boxAngle(o), [px,py]=pos(ang,r);
     const live=isLiveMatch({utc:k.utc,ko:true,st:null});
     const played=k.hs!=null&&!live;
-    const tgt=targetOf[o.num];
-    const advCode= tgt? (tgt.side==="h"?tgt.o.k.hc:tgt.o.k.ac)
+    const parent=parentOf[o.num];
+    const advCode= parent? ["h","a"].map(s=>s==="h"?parent.k.hc:parent.k.ac).find(c=>c&&(c===k.hc||c===k.ac))||null
                  : (rn==="Final"&&played&&k.hs!==k.as? (k.hs>k.as?k.hc:k.ac) : null);
-    if(tgt){
-      const [tx,ty]=pos(slotAngle(tgt.o,tgt.side), RING[tgt.o.k.round][0]);
-      if(advCode&&(advCode===k.hc||advCode===k.ac)){
-        const [wx,wy]= advCode===k.hc?[hx,hy]:[ax,ay];
-        wires+=`<line x1="${wx}" y1="${wy}" x2="${tx}" y2="${ty}" stroke="rgba(245,197,66,.55)" stroke-width="2"/>`;
-      } else {
-        wires+=`<line x1="${(hx+ax)/2}" y1="${(hy+ay)/2}" x2="${tx}" y2="${ty}" stroke="rgba(255,255,255,.12)" stroke-width="1.2" stroke-dasharray="3 4"/>`;
-      }
+    // ONE wire out of the box — the winner's path to the parent scorebox
+    if(parent){
+      const [pr]=RING[parent.k.round];
+      const path=wirePath(ang,r,boxAngle(parent),pr);
+      wires+= advCode? `<path d="${path}" fill="none" stroke="rgba(245,197,66,.7)" stroke-width="3"/>`
+                     : `<path d="${path}" fill="none" stroke="rgba(255,255,255,.15)" stroke-width="1.6" stroke-dasharray="4 5"/>`;
     }
-    if(rn!=="Final") wires+=`<line x1="${hx}" y1="${hy}" x2="${ax}" y2="${ay}" stroke="rgba(255,255,255,.14)" stroke-width="1.2"/>`;
-    nodes+=node(hx,hy,rad,k.hc, played&&advCode&&advCode!==k.hc);
-    nodes+=node(ax,ay,rad,k.ac, played&&advCode&&advCode!==k.ac);
-    // pill: score (played/live) · odds (upcoming with teams) · date (teams TBD)
-    let txt, cls="", fs;
+    // the scorebox: [crest] score/odds [crest], laid TANGENT to its ring (like a
+    // circular dendrogram) so boxes never lean into the neighbouring rings. The
+    // rect + text rotate along the tangent; the crest images stay unrotated at
+    // their absolute positions so badges are never tilted.
+    let txt, cls="";
     const od= !played&&!live&&k.hc&&k.ac? matchOddsOf({id:o.id,hc:k.hc,ac:k.ac}) : null;
-    if(played||live){ txt=`${k.hs!=null?k.hs:0}–${k.as!=null?k.as:0}`; fs=Math.max(13,rad*0.62); }
-    else if(od){ txt=`${od.h}·${od.a}%`; cls="bk-odds"; fs=Math.max(13,Math.min(rad*0.55,20)); }
-    else { txt= k.hc&&k.ac?"vs":fmtZone(k.utc,LOCAL_TZ,{day:"numeric",month:"short"}); fs=15; }
-    let px=(hx+ax)/2, py=(hy+ay)/2;
-    if(rn==="Final") py+=rad+30;                        // keep the very centre for the trophy / champion
-    const w=Math.max(44,txt.length*fs*0.62+14), h=fs+10;
+    let tfs=fs;
+    if(played||live) txt=`${k.hs!=null?k.hs:0}–${k.as!=null?k.as:0}`;
+    else if(od){ txt=`${od.h}·${od.a}%`; cls="bk-odds"; tfs=Math.round(fs*0.82); }
+    else { txt= k.hc&&k.ac?"vs":fmtZone(k.utc,LOCAL_TZ,{day:"numeric",month:"short"}); tfs=Math.round(fs*0.7); }
+    const pad=8, gap=6, textW=Math.ceil(txt.length*tfs*0.62);
+    const w=pad*2+crest*2+gap*2+textW, h=crest+14;
+    let beta= r===0? 0 : (ang+ROT)%360; if(beta<0)beta+=360;      // tangent direction
+    if(beta>90&&beta<270) beta-=180;                              // keep text upright
+    const brad=beta*Math.PI/180, ca=Math.cos(brad), sa=Math.sin(brad);
+    const off=textW/2+gap+crest/2;                                // crest centres, along the tangent
+    const hcx=px-off*ca, hcy=py-off*sa, acx=px+off*ca, acy=py+off*sa;
     const hName=k.hc?tname(k.hc):k.home, aName=k.ac?tname(k.ac):k.away;
     const tip=`${k.round}${k.utc?` · ${fmtZone(k.utc,LOCAL_TZ,{weekday:"short",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})} ${TZ_BADGE}`:""}
 ${hName} ${played||live?`${k.hs}–${k.as}`:"vs"} ${aName}${live?" · LIVE":""}${od?` — ${od.h}%${od.d!=null?` / ${od.d}%`:""} / ${od.a}% (Polymarket)`:""}${played&&k.hs===k.as&&advCode?`
-${tname(advCode)} advanced on penalties`:""}`;
-    pills+=`<a class="bk-match" href="#/match/${o.id}"><title>${esc(tip)}</title>
-      <g class="bk-pill"><rect x="${(px-w/2).toFixed(1)}" y="${(py-h/2).toFixed(1)}" width="${w.toFixed(1)}" height="${h}" rx="${h/2}"/>
-      <text x="${px.toFixed(1)}" y="${(py+fs*0.34).toFixed(1)}" text-anchor="middle" font-size="${fs}"${live?' style="fill:#19c37d"':""} class="${cls}">${esc(txt)}</text></g></a>`;
+${tname(advCode)} advanced on penalties`:""}${rn==="Final"&&advCode?`
+🏆 ${tname(advCode)} — world champions`:""}`;
+    boxes+=`<a class="bk-match" href="#/match/${o.id}"><title>${esc(tip)}</title>
+      <g class="bk-pill${live?" bk-live":""}">
+      <g transform="rotate(${beta.toFixed(1)} ${px.toFixed(1)} ${py.toFixed(1)})"><rect x="${(px-w/2).toFixed(1)}" y="${(py-h/2).toFixed(1)}" width="${w}" height="${h}" rx="${h/2}"/>
+      <text x="${px.toFixed(1)}" y="${(py+tfs*0.34).toFixed(1)}" text-anchor="middle" font-size="${tfs}"${live?' style="fill:#19c37d"':""} class="${cls}">${esc(txt)}</text></g>
+      ${crestIn(hcx, hcy, crest, k.hc, !!advCode&&advCode===k.hc, played&&advCode&&advCode!==k.hc)}
+      ${crestIn(acx, acy, crest, k.ac, !!advCode&&advCode===k.ac, played&&advCode&&advCode!==k.ac)}
+      </g></a>`;
   }
-  // ring labels straight up from the centre (angle 0 is a bracket boundary, so it's free)
-  const RLAB={"Round of 32":"R32","Round of 16":"R16","Quarter-final":"QF","Semi-final":"SF"};
-  let labs=""; for(const rn in RLAB) labs+=`<text class="bk-ring-lab" x="${C}" y="${C-RING[rn][0]+4}" text-anchor="middle" font-size="12">${RLAB[rn]}</text>`;
-  // centre: the champion once the final is decided, a trophy until then
-  let center="";
-  const champ= final&&final.k.hs!=null&&final.k.hs!==final.k.as? (final.k.hs>final.k.as?final.k.hc:final.k.ac) : null;
-  if(champ){
-    const src=(typeof TEAM_IMG!=="undefined"&&TEAM_IMG[champ])||"";
-    center=`<a href="#/team/${champ}"><title>${esc(tname(champ)+" — world champions")}</title>
-      <circle cx="${C}" cy="${C}" r="34" fill="#0b0e1a" stroke="rgba(245,197,66,.9)" stroke-width="2.5"/>
-      ${src?`<image href="${src}" x="${C-26}" y="${C-26}" width="52" height="52"/>`:`<text x="${C}" y="${C+10}" text-anchor="middle" font-size="30">${flag(champ)}</text>`}</a>`;
-  } else center=`<text x="${C}" y="${C+13}" text-anchor="middle" font-size="38">🏆</text>`;
+  // ring labels straight up from the centre (the top spoke is box-free above the semi-final)
+  const RLAB={"Round of 32":"R32","Round of 16":"R16","Quarter-final":"QF"};
+  let labs=""; for(const rn in RLAB) labs+=`<text class="bk-ring-lab" x="${C}" y="${C-RING[rn][0]+4}" text-anchor="middle" font-size="13">${RLAB[rn]}</text>`;
   // third-place play-off lives outside the net
   const o3=(rounds["Third place"]||[])[0];
   const thirdHtml= o3? `<div class="bk-third stat-panel"><h3><span class="ic" style="background:rgba(245,197,66,.15)">🥉</span>Third place play-off</h3>${
     o3.k.hc&&o3.k.ac? matchMiniRow({id:o3.id,hc:o3.k.hc,ac:o3.k.ac,hs:o3.k.hs,as:o3.k.as,utc:o3.k.utc})
     : `<a class="psub lnk" style="display:block" href="#/match/${o3.id}">${esc(o3.k.home)} vs ${esc(o3.k.away)} · ${fmtZone(o3.k.utc,LOCAL_TZ,{weekday:"short",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})} ${TZ_BADGE}</a>`}</div>`:"";
-  host.innerHTML=`<svg id="bracket-svg" viewBox="0 0 1000 1000" role="img" aria-label="Knockout bracket — circular net from the round of 32 to the final">${rings}${wires}${nodes}${labs}${center}${pills}</svg>${thirdHtml}`;
+  host.innerHTML=`<svg id="bracket-svg" viewBox="0 0 1200 1200" role="img" aria-label="Knockout bracket — circular net from the round of 32 to the final">${rings}${wires}${labs}${boxes}</svg>${thirdHtml}`;
 }
 
 /* ---- hash router ---- */
