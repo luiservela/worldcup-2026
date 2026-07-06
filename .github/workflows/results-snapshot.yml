@@ -32,11 +32,12 @@ jobs:
         run: |
           node scripts/event-history.mjs || echo "event-history skipped (Polymarket unavailable?)"
           node scripts/odds-hourly.mjs   || echo "odds-hourly skipped (Polymarket unavailable?)"
+          node scripts/match-odds.mjs    || echo "match-odds skipped (Polymarket unavailable?)"
       - name: Commit if changed
         run: |
           git config user.name "wc26-results-bot"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add schedule.js event-history.js event-history.json odds-hourly.js odds-hourly.json
+          git add schedule.js event-history.js event-history.json odds-hourly.js odds-hourly.json match-odds.js match-odds.json
           if git diff --cached --quiet; then
             echo "No change."; exit 0
           fi

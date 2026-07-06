@@ -1,7 +1,7 @@
 {
   "name": "World Cup 2026 — Live Title Odds",
   "short_name": "WC26",
-  "description": "Daily market-implied World Cup 2026 win probabilities, full schedule, groups, squads and stadiums.",
+  "description": "Hourly market-implied World Cup 2026 win probabilities, full schedule with match odds, groups and the knockout bracket.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

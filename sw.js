@@ -11,9 +11,10 @@
    Bump VER on breaking changes (or to force-flush every client's stale cache,
    which is what v2 did — earlier builds shipped under v1 and could keep
    serving a day-old schedule.js). */
-const VER = "wc26-v4";
-const CORE = ["./", "index.html", "schedule.js", "players.js", "images.js",
-              "player-img.js", "history.js", "manifest.webmanifest"];
+const VER = "wc26-v5";   // v5: players/stadiums removed; match pages + bracket + match-odds added
+const CORE = ["./", "index.html", "schedule.js", "images.js", "flag-colors.js",
+              "history.js", "odds-hourly.js", "event-history.js", "match-odds.js",
+              "manifest.webmanifest"];
 
 self.addEventListener("install", e => {
   e.waitUntil(caches.open(VER).then(c => c.addAll(CORE)).then(() => self.skipWaiting()));
