@@ -114,6 +114,13 @@ tz), `SEED`/`TOKENS` (Polymarket fallback snapshot + token ids), `FEATURE_COLORS
 - **`results-snapshot.mjs`** — regenerate `schedule.js` from Wikipedia's rendered
   fixtures (scores + knockout teams). **Strictly validated** (72 group + 32 knockout,
   all with UTC + venue) or it aborts — so a Wikipedia markup change can't corrupt data.
+  Once the group stage finishes, Wikipedia moves each group's 6 fixture boxes off the
+  main article into its own "2026 FIFA World Cup Group `<X>`" sub-article (the main
+  article keeps only standings tables); the script backfills any group that comes up
+  short from its sub-article (429-retrying, since fetching all 12 back-to-back can trip
+  Wikipedia's rate limiter). Kickoff UTC normally comes from the box's own UTC-offset
+  link, but Wikipedia omits that link for simultaneous final-matchday games — falls
+  back to deriving it from the venue's known IANA timezone (`STAD` table) instead.
 - **`fetch-crests.mjs`** — download crests into `assets/crests/` and repoint `TEAM_IMG`.
 - **`og-image.py`** (Python 3 + Pillow, not Node) — render `assets/og.png`, the
   social-share card, from `history.json`.
