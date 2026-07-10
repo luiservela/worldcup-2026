@@ -51,9 +51,12 @@ it also has Matches (each linking to a **per-match page** with Polymarket odds),
   key-less soccer scoreboard during/just-after matches (`syncLiveScores` →
   `applyLiveScores`, mutating MATCHES/KNOCKOUT, status from ESPN's in-progress/final
   state). Any network/CORS/shape problem is swallowed and committed data stands.
-- **Conventions inside index.html:** every flag links to `#/team/<CODE>` (`flagLink`);
-  every player card links to `#/player/<id>` (`playerCard`); `.lnk`/`teamLink`/
-  `stadiumLink`/`groupLink` make mentions navigable. Match times render in the
+- **Conventions inside index.html:** `teamLink(code, inner)` and `groupLink(g, txt)` are the
+  two link-builder helpers (both emit `class="lnk"` anchors to `#/team/<CODE>` /
+  `#/groups/<G>`) — use them to make team/group mentions navigable. Flags are made clickable
+  inline (`<a class="team-cell" href="#/team/<CODE>">`) rather than through a shared helper.
+  There is no `playerCard` or `stadiumLink` helper — the Players and Stadiums pages were
+  dropped (see "Data sources & ownership" below). Match times render in the
   **viewer's** timezone via `Intl` (`fmtZone` + `LOCAL_TZ`/`TZ_BADGE`); stadium pages
   use the stadium's own tz.
 
