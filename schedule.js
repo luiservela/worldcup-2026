@@ -109,8 +109,8 @@ const KNOCKOUT=[
 {utc:"2026-07-10T19:00:00Z",round:"Quarter-final",vid:"sofi-stadium",venue:"SoFi Stadium",home:"Spain",away:"Belgium",hc:"ESP",ac:"BEL",hs:2,as:1},
 {utc:"2026-07-11T21:00:00Z",round:"Quarter-final",vid:"hard-rock-stadium",venue:"Hard Rock Stadium",home:"Norway",away:"England",hc:"NOR",ac:"ENG",hs:1,as:2},
 {utc:"2026-07-12T01:00:00Z",round:"Quarter-final",vid:"arrowhead-stadium",venue:"Arrowhead Stadium",home:"Argentina",away:"Switzerland",hc:"ARG",ac:"SUI",hs:3,as:1},
-{utc:"2026-07-14T19:00:00Z",round:"Semi-final",vid:"att-stadium",venue:"AT&T Stadium",home:"France",away:"Spain",hc:"FRA",ac:"ESP",hs:null,as:null},
+{utc:"2026-07-14T19:00:00Z",round:"Semi-final",vid:"att-stadium",venue:"AT&T Stadium",home:"France",away:"Spain",hc:"FRA",ac:"ESP",hs:0,as:2},
 {utc:"2026-07-15T19:00:00Z",round:"Semi-final",vid:"mercedes-benz-stadium",venue:"Mercedes-Benz Stadium",home:"England",away:"Argentina",hc:"ENG",ac:"ARG",hs:null,as:null},
-{utc:"2026-07-18T21:00:00Z",round:"Third place",vid:"hard-rock-stadium",venue:"Hard Rock Stadium",home:"Loser Match 101",away:"Loser Match 102",hc:null,ac:null,hs:null,as:null},
-{utc:"2026-07-19T19:00:00Z",round:"Final",vid:"metlife-stadium",venue:"MetLife Stadium",home:"Winner Match 101",away:"Winner Match 102",hc:null,ac:null,hs:null,as:null}
+{utc:"2026-07-18T21:00:00Z",round:"Third place",vid:"hard-rock-stadium",venue:"Hard Rock Stadium",home:"France",away:"Loser Match 102",hc:"FRA",ac:null,hs:null,as:null},
+{utc:"2026-07-19T19:00:00Z",round:"Final",vid:"metlife-stadium",venue:"MetLife Stadium",home:"Spain",away:"Winner Match 102",hc:"ESP",ac:null,hs:null,as:null}
 ];
