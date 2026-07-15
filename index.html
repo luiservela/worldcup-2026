@@ -1384,16 +1384,18 @@ function matchMiniRow(o){
   const {hc,ac,hs,as,utc}=o, live=isLiveMatch(o), played=hs!=null;
   const when=utc?fmtZone(utc,LOCAL_TZ,{weekday:"short",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}):"TBD";
   const mid=(played||live)?`${hs!=null?hs:0}–${as!=null?as:0}`:"v";   // live with no committed goals → 0–0
+  const hFlag=hc?flag(hc):"🏳️", hName=hc?tname(hc):(o.home||"TBD");
+  const aFlag=ac?flag(ac):"🏳️", aName=ac?tname(ac):(o.away||"TBD");
   return `<a href="#/match/${o.id}" style="display:flex;align-items:center;gap:9px;padding:8px 0;border-top:1px solid var(--line);font-size:13px;color:inherit${live?";background:rgba(25,195,125,.06);border-radius:8px;padding-left:6px;padding-right:6px":""}">
     <span style="color:var(--muted-2);width:150px;flex:0 0 auto;font-size:11px">${when}${o.round?` · ${o.round}`:""}${live?` <span class="livebadge"><i></i>LIVE</span>`:""}</span>
-    <span class="flag" style="font-size:19px">${flag(hc)}</span><span style="font-weight:600;flex:1">${tname(hc)}</span>
+    <span class="flag" style="font-size:19px${hc?"":";opacity:.5"}">${hFlag}</span><span style="font-weight:600;flex:1${hc?"":";color:var(--muted-2)"}">${hName}</span>
     <span style="font-weight:800;font-variant-numeric:tabular-nums;color:${live?'var(--gold)':played?'var(--txt)':'var(--muted-2)'}">${mid}</span>
-    <span style="font-weight:600;flex:1;text-align:right">${tname(ac)}</span><span class="flag" style="font-size:19px">${flag(ac)}</span></a>`;
+    <span style="font-weight:600;flex:1;text-align:right${ac?"":";color:var(--muted-2)"}">${aName}</span><span class="flag" style="font-size:19px${ac?"":";opacity:.5"}">${aFlag}</span></a>`;
 }
 // A team's matches as normalized objects: all group games + any resolved knockout ties.
 function teamFixtures(code){
   const g=MATCHES.filter(m=>m[0]===code||m[1]===code).map(m=>({id:m[0]+"-"+m[1],hc:m[0],ac:m[1],hs:m[2],as:m[3],st:m[4],utc:utcOf(m[0],m[1])}));
-  const k=[]; if(typeof KNOCKOUT!=="undefined") KNOCKOUT.forEach((x,i)=>{ if(x.hc===code||x.ac===code) k.push({id:koId(i),hc:x.hc,ac:x.ac,hs:x.hs,as:x.as,utc:x.utc,round:x.round}); });
+  const k=[]; if(typeof KNOCKOUT!=="undefined") KNOCKOUT.forEach((x,i)=>{ if(x.hc===code||x.ac===code) k.push({id:koId(i),hc:x.hc,ac:x.ac,hs:x.hs,as:x.as,utc:x.utc,round:x.round,home:x.home,away:x.away}); });
   return [...g,...k].sort((a,b)=>(a.utc||"z").localeCompare(b.utc||"z"));
 }
 
