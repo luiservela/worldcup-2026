@@ -112,5 +112,5 @@ const KNOCKOUT=[
 {utc:"2026-07-14T19:00:00Z",round:"Semi-final",vid:"att-stadium",venue:"AT&T Stadium",home:"France",away:"Spain",hc:"FRA",ac:"ESP",hs:0,as:2},
 {utc:"2026-07-15T19:00:00Z",round:"Semi-final",vid:"mercedes-benz-stadium",venue:"Mercedes-Benz Stadium",home:"England",away:"Argentina",hc:"ENG",ac:"ARG",hs:1,as:2},
 {utc:"2026-07-18T21:00:00Z",round:"Third place",vid:"hard-rock-stadium",venue:"Hard Rock Stadium",home:"France",away:"England",hc:"FRA",ac:"ENG",hs:4,as:6},
-{utc:"2026-07-19T19:00:00Z",round:"Final",vid:"metlife-stadium",venue:"MetLife Stadium",home:"Spain",away:"Argentina",hc:"ESP",ac:"ARG",hs:null,as:null}
+{utc:"2026-07-19T19:00:00Z",round:"Final",vid:"metlife-stadium",venue:"MetLife Stadium",home:"Spain",away:"Argentina",hc:"ESP",ac:"ARG",hs:1,as:0}
 ];
